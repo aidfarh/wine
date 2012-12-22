@@ -1190,6 +1190,7 @@ static const struct gpu_description gpu_description_table[] =
     {HW_VENDOR_AMD,        CARD_AMD_RADEON_HD6400,         "AMD Radeon HD 6400 Series",        DRIVER_AMD_R600,         1024},
     {HW_VENDOR_AMD,        CARD_AMD_RADEON_HD6410D,        "AMD Radeon HD 6410D",              DRIVER_AMD_R600,         1024},
     {HW_VENDOR_AMD,        CARD_AMD_RADEON_HD6550D,        "AMD Radeon HD 6550D",              DRIVER_AMD_R600,         1024},
+    {HW_VENDOR_AMD,        CARD_AMD_RADEON_HD6530D,        "AMD Radeon HD 6530D",              DRIVER_AMD_R600,         1024},
     {HW_VENDOR_AMD,        CARD_AMD_RADEON_HD6600,         "AMD Radeon HD 6600 Series",        DRIVER_AMD_R600,         1024},
     {HW_VENDOR_AMD,        CARD_AMD_RADEON_HD6600M,        "AMD Radeon HD 6600M Series",       DRIVER_AMD_R600,         512 },
     {HW_VENDOR_AMD,        CARD_AMD_RADEON_HD6700,         "AMD Radeon HD 6700 Series",        DRIVER_AMD_R600,         1024},
@@ -1766,6 +1767,7 @@ static enum wined3d_pci_device select_card_amd_binary(const struct wined3d_gl_in
         cards[] =
         {
             /* Southern Islands */
+            {"HD 6530D", CARD_AMD_RADEON_HD6530D},
             {"HD 7900", CARD_AMD_RADEON_HD7900},
             {"HD 7800", CARD_AMD_RADEON_HD7800},
             {"HD 7700", CARD_AMD_RADEON_HD7700},
@@ -1970,7 +1972,7 @@ static enum wined3d_pci_device select_card_amd_mesa(const struct wined3d_gl_info
         {"BARTS",       CARD_AMD_RADEON_HD6800},
         {"TURKS",       CARD_AMD_RADEON_HD6600},
         {"SUMO2",       CARD_AMD_RADEON_HD6410D},   /* SUMO2 first, because we do a strstr(). */
-        {"SUMO",        CARD_AMD_RADEON_HD6550D},
+        {"SUMO",        CARD_AMD_RADEON_HD6530D},
         {"CAICOS",      CARD_AMD_RADEON_HD6400},
         {"PALM",        CARD_AMD_RADEON_HD6300},
         /* Evergreen */
@@ -2177,7 +2179,7 @@ static enum wined3d_pci_device select_card_fallback_amd(const struct wined3d_gl_
 {
     UINT d3d_level = d3d_level_from_gl_info(gl_info);
     if (d3d_level >= 10)
-        return CARD_AMD_RADEON_HD2900;
+        return CARD_AMD_RADEON_HD6530D;
     if (d3d_level >= 9)
         return CARD_AMD_RADEON_9500;
     if (d3d_level >= 8)

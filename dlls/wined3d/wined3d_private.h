@@ -1373,6 +1373,7 @@ enum wined3d_pci_device
     CARD_AMD_RADEON_HD6400          = 0x6770,
     CARD_AMD_RADEON_HD6410D         = 0x9644,
     CARD_AMD_RADEON_HD6550D         = 0x9640,
+    CARD_AMD_RADEON_HD6530D         = 0x964a,
     CARD_AMD_RADEON_HD6600          = 0x6758,
     CARD_AMD_RADEON_HD6600M         = 0x6741,
     CARD_AMD_RADEON_HD6700          = 0x68ba,
