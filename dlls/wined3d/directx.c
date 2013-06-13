@@ -1177,6 +1177,7 @@ static const struct gpu_description gpu_description_table[] =
     {HW_VENDOR_AMD,        CARD_AMD_RADEON_HD2600,         "ATI Mobility Radeon HD 2600",      DRIVER_AMD_R600,         256 },
     {HW_VENDOR_AMD,        CARD_AMD_RADEON_HD2900,         "ATI Radeon HD 2900 XT",            DRIVER_AMD_R600,         512 },
     {HW_VENDOR_AMD,        CARD_AMD_RADEON_HD3200,         "ATI Radeon HD 3200 Graphics",      DRIVER_AMD_R600,         128 },
+    {HW_VENDOR_AMD,        CARD_AMD_RADEON_HD4200M,        "ATI Mobility Radeon HD 4200",      DRIVER_AMD_R600,         256 },
     {HW_VENDOR_AMD,        CARD_AMD_RADEON_HD4350,         "ATI Radeon HD 4350",               DRIVER_AMD_R600,         256 },
     {HW_VENDOR_AMD,        CARD_AMD_RADEON_HD4600,         "ATI Radeon HD 4600 Series",        DRIVER_AMD_R600,         512 },
     {HW_VENDOR_AMD,        CARD_AMD_RADEON_HD4700,         "ATI Radeon HD 4700 Series",        DRIVER_AMD_R600,         512 },
@@ -1814,6 +1815,7 @@ static enum wined3d_pci_device select_card_amd_binary(const struct wined3d_gl_in
             {"HD 4550", CARD_AMD_RADEON_HD4350},    /* Radeon RV710 */
             {"HD 4350", CARD_AMD_RADEON_HD4350},    /* Radeon RV710 */
             /* R600/R700 integrated */
+            {"HD 4200M", CARD_AMD_RADEON_HD4200M},
             {"HD 3300", CARD_AMD_RADEON_HD3200},
             {"HD 3200", CARD_AMD_RADEON_HD3200},
             {"HD 3100", CARD_AMD_RADEON_HD3200},
@@ -1989,7 +1991,7 @@ static enum wined3d_pci_device select_card_amd_mesa(const struct wined3d_gl_info
         {"RV730",       CARD_AMD_RADEON_HD4600},
         {"RV710",       CARD_AMD_RADEON_HD4350},
         /* R600/R700 integrated */
-        {"RS880",       CARD_AMD_RADEON_HD3200},
+        {"RS880",       CARD_AMD_RADEON_HD4200M},
         {"RS780",       CARD_AMD_RADEON_HD3200},
         /* R600 */
         {"R680",        CARD_AMD_RADEON_HD2900},
@@ -2316,6 +2318,14 @@ static enum wined3d_pci_device wined3d_guess_card(const struct wined3d_gl_info *
     /* Default to generic Nvidia hardware based on the supported OpenGL extensions. */
     *card_vendor = HW_VENDOR_NVIDIA;
     return select_card_fallback_nvidia(gl_info);
+}
+
+static const struct wined3d_vertex_pipe_ops *select_vertex_implementation(const struct wined3d_gl_info *gl_info,
+        const struct wined3d_shader_backend_ops *shader_backend_ops)
+{
+    if (shader_backend_ops == &glsl_shader_backend)
+        return &glsl_vertex_pipe;
+    return &ffp_vertex_pipe;
 }
 
 static const struct fragment_pipeline *select_fragment_implementation(const struct wined3d_gl_info *gl_info,
@@ -2845,7 +2855,7 @@ static BOOL wined3d_adapter_init_gl_caps(struct wined3d_adapter *adapter)
     checkGLcall("extension detection");
 
     adapter->shader_backend = select_shader_backend(gl_info);
-    adapter->vertex_pipe = &ffp_vertex_pipe;
+    adapter->vertex_pipe = select_vertex_implementation(gl_info, adapter->shader_backend);
     adapter->fragment_pipe = select_fragment_implementation(gl_info, adapter->shader_backend);
     adapter->blitter = select_blit_implementation(gl_info, adapter->shader_backend);
 
@@ -4684,6 +4694,7 @@ static void fillGLAttribFuncs(const struct wined3d_gl_info *gl_info)
     position_funcs[WINED3D_FFP_EMIT_DEC3N]       = invalid_func;
     position_funcs[WINED3D_FFP_EMIT_FLOAT16_2]   = invalid_func;
     position_funcs[WINED3D_FFP_EMIT_FLOAT16_4]   = invalid_func;
+    position_funcs[WINED3D_FFP_EMIT_INVALID]     = invalid_func;
 
     diffuse_funcs[WINED3D_FFP_EMIT_FLOAT1]       = invalid_func;
     diffuse_funcs[WINED3D_FFP_EMIT_FLOAT2]       = invalid_func;
@@ -4702,6 +4713,7 @@ static void fillGLAttribFuncs(const struct wined3d_gl_info *gl_info)
     diffuse_funcs[WINED3D_FFP_EMIT_DEC3N]        = invalid_func;
     diffuse_funcs[WINED3D_FFP_EMIT_FLOAT16_2]    = invalid_func;
     diffuse_funcs[WINED3D_FFP_EMIT_FLOAT16_4]    = invalid_func;
+    diffuse_funcs[WINED3D_FFP_EMIT_INVALID]      = invalid_func;
 
     /* No 4 component entry points here */
     specular_funcs[WINED3D_FFP_EMIT_FLOAT1]      = invalid_func;
@@ -4736,6 +4748,7 @@ static void fillGLAttribFuncs(const struct wined3d_gl_info *gl_info)
     specular_funcs[WINED3D_FFP_EMIT_DEC3N]       = invalid_func;
     specular_funcs[WINED3D_FFP_EMIT_FLOAT16_2]   = invalid_func;
     specular_funcs[WINED3D_FFP_EMIT_FLOAT16_4]   = invalid_func;
+    specular_funcs[WINED3D_FFP_EMIT_INVALID]     = invalid_func;
 
     /* Only 3 component entry points here. Test how others behave. Float4 normals are used
      * by one of our tests, trying to pass it to the pixel shader, which fails on Windows.
@@ -4757,6 +4770,7 @@ static void fillGLAttribFuncs(const struct wined3d_gl_info *gl_info)
     normal_funcs[WINED3D_FFP_EMIT_DEC3N]          = invalid_func;
     normal_funcs[WINED3D_FFP_EMIT_FLOAT16_2]      = invalid_func;
     normal_funcs[WINED3D_FFP_EMIT_FLOAT16_4]      = invalid_func;
+    normal_funcs[WINED3D_FFP_EMIT_INVALID]        = invalid_func;
 
     multi_texcoord_funcs[WINED3D_FFP_EMIT_FLOAT1]    = (glMultiTexCoordFunc)GL_EXTCALL(glMultiTexCoord1fvARB);
     multi_texcoord_funcs[WINED3D_FFP_EMIT_FLOAT2]    = (glMultiTexCoordFunc)GL_EXTCALL(glMultiTexCoord2fvARB);
@@ -4782,6 +4796,7 @@ static void fillGLAttribFuncs(const struct wined3d_gl_info *gl_info)
         multi_texcoord_funcs[WINED3D_FFP_EMIT_FLOAT16_2] = invalid_texcoord_func;
         multi_texcoord_funcs[WINED3D_FFP_EMIT_FLOAT16_4] = invalid_texcoord_func;
     }
+    multi_texcoord_funcs[WINED3D_FFP_EMIT_INVALID]   = invalid_texcoord_func;
 }
 
 static void wined3d_adapter_init_fb_cfgs(struct wined3d_adapter *adapter, HDC dc)

@@ -1,7 +1,7 @@
 /*
  * Context and render target management in wined3d
  *
- * Copyright 2007-2008 Stefan Dösinger for CodeWeavers
+ * Copyright 2007-2011, 2013 Stefan Dösinger for CodeWeavers
  * Copyright 2009-2011 Henri Verbeet for CodeWeavers
  *
  * This library is free software; you can redistribute it and/or
@@ -38,43 +38,27 @@ static DWORD wined3d_context_tls_idx;
 /* FBO helper functions */
 
 /* Context activation is done by the caller. */
-static void context_bind_fbo(struct wined3d_context *context, GLenum target, GLuint *fbo)
+static void context_bind_fbo(struct wined3d_context *context, GLenum target, GLuint fbo)
 {
     const struct wined3d_gl_info *gl_info = context->gl_info;
-    GLuint f;
-
-    if (!fbo)
-    {
-        f = 0;
-    }
-    else
-    {
-        if (!*fbo)
-        {
-            gl_info->fbo_ops.glGenFramebuffers(1, fbo);
-            checkGLcall("glGenFramebuffers()");
-            TRACE("Created FBO %u.\n", *fbo);
-        }
-        f = *fbo;
-    }
 
     switch (target)
     {
         case GL_READ_FRAMEBUFFER:
-            if (context->fbo_read_binding == f) return;
-            context->fbo_read_binding = f;
+            if (context->fbo_read_binding == fbo) return;
+            context->fbo_read_binding = fbo;
             break;
 
         case GL_DRAW_FRAMEBUFFER:
-            if (context->fbo_draw_binding == f) return;
-            context->fbo_draw_binding = f;
+            if (context->fbo_draw_binding == fbo) return;
+            context->fbo_draw_binding = fbo;
             break;
 
         case GL_FRAMEBUFFER:
-            if (context->fbo_read_binding == f
-                    && context->fbo_draw_binding == f) return;
-            context->fbo_read_binding = f;
-            context->fbo_draw_binding = f;
+            if (context->fbo_read_binding == fbo
+                    && context->fbo_draw_binding == fbo) return;
+            context->fbo_read_binding = fbo;
+            context->fbo_draw_binding = fbo;
             break;
 
         default:
@@ -82,7 +66,7 @@ static void context_bind_fbo(struct wined3d_context *context, GLenum target, GLu
             break;
     }
 
-    gl_info->fbo_ops.glBindFramebuffer(target, f);
+    gl_info->fbo_ops.glBindFramebuffer(target, fbo);
     checkGLcall("glBindFramebuffer()");
 }
 
@@ -104,15 +88,15 @@ static void context_clean_fbo_attachments(const struct wined3d_gl_info *gl_info,
 }
 
 /* Context activation is done by the caller. */
-static void context_destroy_fbo(struct wined3d_context *context, GLuint *fbo)
+static void context_destroy_fbo(struct wined3d_context *context, GLuint fbo)
 {
     const struct wined3d_gl_info *gl_info = context->gl_info;
 
     context_bind_fbo(context, GL_FRAMEBUFFER, fbo);
     context_clean_fbo_attachments(gl_info, GL_FRAMEBUFFER);
-    context_bind_fbo(context, GL_FRAMEBUFFER, NULL);
+    context_bind_fbo(context, GL_FRAMEBUFFER, 0);
 
-    gl_info->fbo_ops.glDeleteFramebuffers(1, fbo);
+    gl_info->fbo_ops.glDeleteFramebuffers(1, &fbo);
     checkGLcall("glDeleteFramebuffers()");
 }
 
@@ -338,7 +322,9 @@ static struct fbo_entry *context_create_fbo_entry(const struct wined3d_context *
     entry->location = location;
     entry->rt_mask = context_generate_rt_mask(GL_COLOR_ATTACHMENT0);
     entry->attached = FALSE;
-    entry->id = 0;
+    gl_info->fbo_ops.glGenFramebuffers(1, &entry->id);
+    checkGLcall("glGenFramebuffers()");
+    TRACE("Created FBO %u.\n", entry->id);
 
     return entry;
 }
@@ -350,7 +336,7 @@ static void context_reuse_fbo_entry(struct wined3d_context *context, GLenum targ
 {
     const struct wined3d_gl_info *gl_info = context->gl_info;
 
-    context_bind_fbo(context, target, &entry->id);
+    context_bind_fbo(context, target, entry->id);
     context_clean_fbo_attachments(gl_info, target);
 
     memcpy(entry->render_targets, render_targets, gl_info->limits.buffers * sizeof(*entry->render_targets));
@@ -364,8 +350,8 @@ static void context_destroy_fbo_entry(struct wined3d_context *context, struct fb
 {
     if (entry->id)
     {
-        TRACE("Destroy FBO %d\n", entry->id);
-        context_destroy_fbo(context, &entry->id);
+        TRACE("Destroy FBO %u.\n", entry->id);
+        context_destroy_fbo(context, entry->id);
     }
     --context->fbo_entry_count;
     list_remove(&entry->entry);
@@ -428,13 +414,13 @@ static void context_apply_fbo_entry(struct wined3d_context *context, GLenum targ
 
     if (entry->attached)
     {
-        context_bind_fbo(context, target, &entry->id);
+        context_bind_fbo(context, target, entry->id);
         return;
     }
 
     read_binding = context->fbo_read_binding;
     draw_binding = context->fbo_draw_binding;
-    context_bind_fbo(context, GL_FRAMEBUFFER, &entry->id);
+    context_bind_fbo(context, GL_FRAMEBUFFER, entry->id);
 
     /* Apply render targets */
     for (i = 0; i < gl_info->limits.buffers; ++i)
@@ -454,9 +440,9 @@ static void context_apply_fbo_entry(struct wined3d_context *context, GLenum targ
     if (target != GL_FRAMEBUFFER)
     {
         if (target == GL_READ_FRAMEBUFFER)
-            context_bind_fbo(context, GL_DRAW_FRAMEBUFFER, draw_binding ? &draw_binding : NULL);
+            context_bind_fbo(context, GL_DRAW_FRAMEBUFFER, draw_binding);
         else
-            context_bind_fbo(context, GL_READ_FRAMEBUFFER, read_binding ? &read_binding : NULL);
+            context_bind_fbo(context, GL_READ_FRAMEBUFFER, read_binding);
     }
 
     entry->attached = TRUE;
@@ -475,14 +461,14 @@ static void context_apply_fbo_state(struct wined3d_context *context, GLenum targ
 
     if (context->rebind_fbo)
     {
-        context_bind_fbo(context, GL_FRAMEBUFFER, NULL);
+        context_bind_fbo(context, GL_FRAMEBUFFER, 0);
         context->rebind_fbo = FALSE;
     }
 
     if (location == SFLAG_INDRAWABLE)
     {
         context->current_fbo = NULL;
-        context_bind_fbo(context, target, NULL);
+        context_bind_fbo(context, target, 0);
     }
     else
     {
@@ -1719,8 +1705,7 @@ static void context_get_rt_size(const struct wined3d_context *context, SIZE *siz
 {
     const struct wined3d_surface *rt = context->current_rt;
 
-    if (rt->container.type == WINED3D_CONTAINER_SWAPCHAIN
-            && rt->container.u.swapchain->front_buffer == rt)
+    if (rt->swapchain && rt->swapchain->front_buffer == rt)
     {
         RECT window_size;
 
@@ -1922,7 +1907,7 @@ static void SetupForBlit(const struct wined3d_device *device, struct wined3d_con
     set_blit_dimension(gl_info, rt_size.cx, rt_size.cy);
 
     /* Disable shaders */
-    device->shader_backend->shader_select(context, WINED3D_SHADER_MODE_NONE, WINED3D_SHADER_MODE_NONE);
+    device->shader_backend->shader_disable(device->shader_priv, context);
     context->select_shader = 1;
     context->load_constants = 1;
 
@@ -2100,7 +2085,7 @@ static void context_validate_onscreen_formats(struct wined3d_context *context,
         const struct wined3d_surface *depth_stencil)
 {
     /* Onscreen surfaces are always in a swapchain */
-    struct wined3d_swapchain *swapchain = context->current_rt->container.u.swapchain;
+    struct wined3d_swapchain *swapchain = context->current_rt->swapchain;
 
     if (context->render_offscreen || !depth_stencil) return;
     if (match_depth_stencil_format(swapchain->ds_format, depth_stencil->resource.format)) return;
@@ -2121,7 +2106,7 @@ static DWORD context_generate_rt_mask_no_fbo(const struct wined3d_device *device
 {
     if (!rt || rt->resource.format->id == WINED3DFMT_NULL)
         return 0;
-    else if (rt->container.type == WINED3D_CONTAINER_SWAPCHAIN)
+    else if (rt->swapchain)
         return context_generate_rt_mask_from_surface(rt);
     else
         return context_generate_rt_mask(device->offscreenBuffer);
@@ -2149,7 +2134,8 @@ void context_apply_blit_state(struct wined3d_context *context, const struct wine
         }
         else
         {
-            context_bind_fbo(context, GL_FRAMEBUFFER, NULL);
+            context->current_fbo = NULL;
+            context_bind_fbo(context, GL_FRAMEBUFFER, 0);
             rt_mask = context_generate_rt_mask_from_surface(rt);
         }
     }
@@ -2403,15 +2389,14 @@ BOOL context_apply_draw_state(struct wined3d_context *context, struct wined3d_de
 
     if (context->select_shader)
     {
-        device->shader_backend->shader_select(context,
-                use_vs(state) ? WINED3D_SHADER_MODE_SHADER : WINED3D_SHADER_MODE_FFP,
-                use_ps(state) ? WINED3D_SHADER_MODE_SHADER : WINED3D_SHADER_MODE_FFP);
+        device->shader_backend->shader_select(device->shader_priv, context, state);
         context->select_shader = 0;
     }
 
     if (context->load_constants)
     {
-        device->shader_backend->shader_load_constants(context, use_ps(state), use_vs(state));
+        device->shader_backend->shader_load_constants(device->shader_priv,
+                context, state);
         context->load_constants = 0;
     }
 
@@ -2511,11 +2496,11 @@ struct wined3d_context *context_acquire(const struct wined3d_device *device, str
     {
         context = current_context;
     }
-    else if (target->container.type == WINED3D_CONTAINER_SWAPCHAIN)
+    else if (target->swapchain)
     {
         TRACE("Rendering onscreen.\n");
 
-        context = swapchain_get_context(target->container.u.swapchain);
+        context = swapchain_get_context(target->swapchain);
     }
     else
     {

@@ -35,7 +35,6 @@ static const char *dbgstr_event(int type)
         "APP_DEACTIVATED",
         "APP_QUIT_REQUESTED",
         "DISPLAYS_CHANGED",
-        "IM_SET_CURSOR_POS",
         "IM_SET_TEXT",
         "KEY_PRESS",
         "KEY_RELEASE",
@@ -92,7 +91,6 @@ static macdrv_event_mask get_event_mask(DWORD mask)
         event_mask |= event_mask_for_type(APP_DEACTIVATED);
         event_mask |= event_mask_for_type(APP_QUIT_REQUESTED);
         event_mask |= event_mask_for_type(DISPLAYS_CHANGED);
-        event_mask |= event_mask_for_type(IM_SET_CURSOR_POS);
         event_mask |= event_mask_for_type(IM_SET_TEXT);
         event_mask |= event_mask_for_type(STATUS_ITEM_CLICKED);
         event_mask |= event_mask_for_type(WINDOW_CLOSE_REQUESTED);
@@ -136,6 +134,10 @@ static void macdrv_query_event(HWND hwnd, const macdrv_event *event)
             TRACE("QUERY_DRAG_OPERATION\n");
             success = query_drag_operation(query);
             break;
+        case QUERY_IME_CHAR_RECT:
+            TRACE("QUERY_IME_CHAR_RECT\n");
+            success = query_ime_char_rect(query);
+            break;
         case QUERY_PASTEBOARD_DATA:
             TRACE("QUERY_PASTEBOARD_DATA\n");
             success = query_pasteboard_data(hwnd, query->pasteboard_data.type);
@@ -176,9 +178,6 @@ void macdrv_handle_event(const macdrv_event *event)
         break;
     case DISPLAYS_CHANGED:
         macdrv_displays_changed(event);
-        break;
-    case IM_SET_CURSOR_POS:
-        macdrv_im_set_cursor_pos(event);
         break;
     case IM_SET_TEXT:
         macdrv_im_set_text(event);

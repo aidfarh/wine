@@ -640,8 +640,8 @@ static void shader_arb_vs_local_constants(const struct arb_vs_compiled_shader *g
     checkGLcall("Load vs int consts");
 }
 
-static void shader_arb_select(const struct wined3d_context *context, enum wined3d_shader_mode vertex_mode,
-        enum wined3d_shader_mode fragment_mode);
+static void shader_arb_select(void *shader_priv, const struct wined3d_context *context,
+        const struct wined3d_state *state);
 
 /**
  * Loads the app-supplied constants into the currently set ARB_[vertex/fragment]_programs.
@@ -650,40 +650,31 @@ static void shader_arb_select(const struct wined3d_context *context, enum wined3
  * worry about the Integers or Booleans
  */
 /* Context activation is done by the caller (state handler). */
-static void shader_arb_load_constants_internal(const struct wined3d_context *context,
+static void shader_arb_load_constants_internal(struct shader_arb_priv *priv,
+        const struct wined3d_context *context, const struct wined3d_state *state,
         BOOL usePixelShader, BOOL useVertexShader, BOOL from_shader_select)
 {
-    struct wined3d_device *device = context->swapchain->device;
-    const struct wined3d_stateblock *stateblock = device->stateBlock;
-    const struct wined3d_state *state = &stateblock->state;
-    const struct wined3d_gl_info *gl_info = context->gl_info;
     const struct wined3d_d3d_info *d3d_info = context->d3d_info;
-    struct shader_arb_priv *priv = device->shader_priv;
+    const struct wined3d_gl_info *gl_info = context->gl_info;
 
     if (!from_shader_select)
     {
         const struct wined3d_shader *vshader = state->vertex_shader, *pshader = state->pixel_shader;
         if (vshader
-                && (stateblock->changed.vertexShaderConstantsB & vshader->reg_maps.boolean_constants
+                && (vshader->reg_maps.boolean_constants
                 || (!gl_info->supported[NV_VERTEX_PROGRAM2_OPTION]
-                && (stateblock->changed.vertexShaderConstantsI
-                & vshader->reg_maps.integer_constants & ~vshader->reg_maps.local_int_consts))))
+                && (vshader->reg_maps.integer_constants & ~vshader->reg_maps.local_int_consts))))
         {
             TRACE("bool/integer vertex shader constants potentially modified, forcing shader reselection.\n");
-            shader_arb_select(context,
-                    useVertexShader ? WINED3D_SHADER_MODE_SHADER : WINED3D_SHADER_MODE_FFP,
-                    usePixelShader ? WINED3D_SHADER_MODE_SHADER : WINED3D_SHADER_MODE_FFP);
+            shader_arb_select(priv, context, state);
         }
         else if (pshader
-                && (stateblock->changed.pixelShaderConstantsB & pshader->reg_maps.boolean_constants
+                && (pshader->reg_maps.boolean_constants
                 || (!gl_info->supported[NV_FRAGMENT_PROGRAM_OPTION]
-                && (stateblock->changed.pixelShaderConstantsI
-                & pshader->reg_maps.integer_constants & ~pshader->reg_maps.local_int_consts))))
+                && (pshader->reg_maps.integer_constants & ~pshader->reg_maps.local_int_consts))))
         {
             TRACE("bool/integer pixel shader constants potentially modified, forcing shader reselection.\n");
-            shader_arb_select(context,
-                    useVertexShader ? WINED3D_SHADER_MODE_SHADER : WINED3D_SHADER_MODE_FFP,
-                    usePixelShader ? WINED3D_SHADER_MODE_SHADER : WINED3D_SHADER_MODE_FFP);
+            shader_arb_select(priv, context, state);
         }
     }
 
@@ -724,9 +715,13 @@ static void shader_arb_load_constants_internal(const struct wined3d_context *con
     }
 }
 
-static void shader_arb_load_constants(const struct wined3d_context *context, BOOL ps, BOOL vs)
+static void shader_arb_load_constants(void *shader_priv, const struct wined3d_context *context,
+        const struct wined3d_state *state)
 {
-    shader_arb_load_constants_internal(context, ps, vs, FALSE);
+    BOOL vs = use_vs(state);
+    BOOL ps = use_ps(state);
+
+    shader_arb_load_constants_internal(shader_priv, context, state, ps, vs, FALSE);
 }
 
 static void shader_arb_update_float_vertex_constants(struct wined3d_device *device, UINT start, UINT count)
@@ -3667,16 +3662,17 @@ static GLuint shader_arb_generate_pshader(const struct wined3d_shader *shader,
 
     if (reg_maps->shader_version.major < 3)
     {
-        switch(args->super.fog) {
-            case FOG_OFF:
+        switch (args->super.fog)
+        {
+            case WINED3D_FFP_PS_FOG_OFF:
                 break;
-            case FOG_LINEAR:
+            case WINED3D_FFP_PS_FOG_LINEAR:
                 shader_addline(buffer, "OPTION ARB_fog_linear;\n");
                 break;
-            case FOG_EXP:
+            case WINED3D_FFP_PS_FOG_EXP:
                 shader_addline(buffer, "OPTION ARB_fog_exp;\n");
                 break;
-            case FOG_EXP2:
+            case WINED3D_FFP_PS_FOG_EXP2:
                 shader_addline(buffer, "OPTION ARB_fog_exp2;\n");
                 break;
         }
@@ -3954,7 +3950,8 @@ static DWORD find_input_signature(struct shader_arb_priv *priv, const struct win
     return found_sig->idx;
 }
 
-static void init_output_registers(const struct wined3d_shader *shader, DWORD sig_num,
+static void init_output_registers(const struct wined3d_shader *shader,
+        const struct wined3d_shader_signature_element *ps_input_sig,
         struct shader_arb_ctx_priv *priv_ctx, struct arb_vs_compiled_shader *compiled)
 {
     unsigned int i, j;
@@ -3963,8 +3960,6 @@ static void init_output_registers(const struct wined3d_shader *shader, DWORD sig
         "result.texcoord[0]", "result.texcoord[1]", "result.texcoord[2]", "result.texcoord[3]",
         "result.texcoord[4]", "result.texcoord[5]", "result.texcoord[6]", "result.texcoord[7]"
     };
-    struct wined3d_device *device = shader->device;
-    const struct wined3d_shader_signature_element *sig;
     const char *semantic_name;
     DWORD semantic_idx, reg_idx;
 
@@ -3978,7 +3973,7 @@ static void init_output_registers(const struct wined3d_shader *shader, DWORD sig
         "result.color.primary", "result.color.secondary"
     };
 
-    if(sig_num == ~0)
+    if (!ps_input_sig)
     {
         TRACE("Pixel shader uses builtin varyings\n");
         /* Map builtins to builtins */
@@ -4037,10 +4032,6 @@ static void init_output_registers(const struct wined3d_shader *shader, DWORD sig
         return;
     }
 
-    /* Instead of searching for the signature in the signature list, read the one from the current pixel shader.
-     * Its maybe not the shader where the signature came from, but it is the same signature and faster to find
-     */
-    sig = device->stateBlock->state.pixel_shader->input_signature;
     TRACE("Pixel shader uses declared varyings\n");
 
     /* Map builtin to declared. /dev/null the results by default to the TA temp reg */
@@ -4054,9 +4045,9 @@ static void init_output_registers(const struct wined3d_shader *shader, DWORD sig
 
     for(i = 0; i < MAX_REG_INPUT; i++)
     {
-        semantic_name = sig[i].semantic_name;
-        semantic_idx = sig[i].semantic_idx;
-        reg_idx = sig[i].register_idx;
+        semantic_name = ps_input_sig[i].semantic_name;
+        semantic_idx = ps_input_sig[i].semantic_idx;
+        reg_idx = ps_input_sig[i].register_idx;
         if (!semantic_name) continue;
 
         /* If a declared input register is not written by builtin arguments, don't write to it.
@@ -4115,12 +4106,12 @@ static void init_output_registers(const struct wined3d_shader *shader, DWORD sig
 
         for(j = 0; j < MAX_REG_INPUT; j++)
         {
-            if (!sig[j].semantic_name) continue;
+            if (!ps_input_sig[j].semantic_name) continue;
 
-            if (!strcmp(sig[j].semantic_name, semantic_name)
-                    && sig[j].semantic_idx == shader->output_signature[i].semantic_idx)
+            if (!strcmp(ps_input_sig[j].semantic_name, semantic_name)
+                    && ps_input_sig[j].semantic_idx == shader->output_signature[i].semantic_idx)
             {
-                priv_ctx->vs_output[i] = decl_idx_to_string[sig[j].register_idx];
+                priv_ctx->vs_output[i] = decl_idx_to_string[ps_input_sig[j].register_idx];
 
                 if (!strcmp(priv_ctx->vs_output[i], "result.color.primary")
                         || !strcmp(priv_ctx->vs_output[i], "result.color.secondary"))
@@ -4135,7 +4126,8 @@ static void init_output_registers(const struct wined3d_shader *shader, DWORD sig
 /* Context activation is done by the caller. */
 static GLuint shader_arb_generate_vshader(const struct wined3d_shader *shader,
         const struct wined3d_gl_info *gl_info, struct wined3d_shader_buffer *buffer,
-        const struct arb_vs_compile_args *args, struct arb_vs_compiled_shader *compiled)
+        const struct arb_vs_compile_args *args, struct arb_vs_compiled_shader *compiled,
+        const struct wined3d_shader_signature_element *ps_input_sig)
 {
     const struct arb_vshader_private *shader_data = shader->backend_data;
     const struct wined3d_shader_reg_maps *reg_maps = &shader->reg_maps;
@@ -4150,7 +4142,7 @@ static GLuint shader_arb_generate_vshader(const struct wined3d_shader *shader,
     memset(&priv_ctx, 0, sizeof(priv_ctx));
     priv_ctx.cur_vs_args = args;
     list_init(&priv_ctx.control_frames);
-    init_output_registers(shader, args->ps_signature, &priv_ctx, compiled);
+    init_output_registers(shader, ps_input_sig, &priv_ctx, compiled);
 
     /*  Create the hw ARB shader */
     shader_addline(buffer, "!!ARBvp1.0\n");
@@ -4311,7 +4303,7 @@ static struct arb_ps_compiled_shader *find_arb_pshader(struct wined3d_shader *sh
         shader_data->clamp_consts = shader->reg_maps.shader_version.major == 1;
 
         if (shader->reg_maps.shader_version.major < 3)
-            shader_data->input_signature_idx = ~0;
+            shader_data->input_signature_idx = ~0U;
         else
             shader_data->input_signature_idx = find_input_signature(priv, shader->input_signature);
 
@@ -4387,7 +4379,8 @@ static inline BOOL vs_args_equal(const struct arb_vs_compile_args *stored, const
 }
 
 static struct arb_vs_compiled_shader *find_arb_vshader(struct wined3d_shader *shader,
-        const struct arb_vs_compile_args *args)
+        const struct arb_vs_compile_args *args,
+        const struct wined3d_shader_signature_element *ps_input_sig)
 {
     struct wined3d_device *device = shader->device;
     const struct wined3d_gl_info *gl_info = &device->adapter->gl_info;
@@ -4465,7 +4458,8 @@ static struct arb_vs_compiled_shader *find_arb_vshader(struct wined3d_shader *sh
     }
 
     ret = shader_arb_generate_vshader(shader, gl_info, &buffer, args,
-            &shader_data->gl_shaders[shader_data->num_gl_shaders]);
+            &shader_data->gl_shaders[shader_data->num_gl_shaders],
+            ps_input_sig);
     shader_buffer_free(&buffer);
     shader_data->gl_shaders[shader_data->num_gl_shaders].prgId = ret;
 
@@ -4608,17 +4602,15 @@ static void find_arb_vs_compile_args(const struct wined3d_state *state,
 }
 
 /* Context activation is done by the caller. */
-static void shader_arb_select(const struct wined3d_context *context, enum wined3d_shader_mode vertex_mode,
-        enum wined3d_shader_mode fragment_mode)
+static void shader_arb_select(void *shader_priv, const struct wined3d_context *context,
+        const struct wined3d_state *state)
 {
-    struct wined3d_device *device = context->swapchain->device;
-    struct shader_arb_priv *priv = device->shader_priv;
+    struct shader_arb_priv *priv = shader_priv;
     const struct wined3d_gl_info *gl_info = context->gl_info;
-    const struct wined3d_state *state = &device->stateBlock->state;
     int i;
 
     /* Deal with pixel shaders first so the vertex shader arg function has the input signature ready */
-    if (fragment_mode == WINED3D_SHADER_MODE_SHADER)
+    if (use_ps(state))
     {
         struct wined3d_shader *ps = state->pixel_shader;
         struct arb_ps_compile_args compile_args;
@@ -4641,8 +4633,7 @@ static void shader_arb_select(const struct wined3d_context *context, enum wined3
         gl_info->gl_ops.gl.p_glEnable(GL_FRAGMENT_PROGRAM_ARB);
         checkGLcall("glEnable(GL_FRAGMENT_PROGRAM_ARB);");
 
-        TRACE("(%p) : Bound fragment program %u and enabled GL_FRAGMENT_PROGRAM_ARB\n",
-                device, priv->current_fprogram_id);
+        TRACE("Bound fragment program %u and enabled GL_FRAGMENT_PROGRAM_ARB\n", priv->current_fprogram_id);
 
         /* Pixel Shader 1.x constants are clamped to [-1;1], Pixel Shader 2.0 constants are not. If switching between
          * a 1.x and newer shader, reload the first 8 constants
@@ -4656,7 +4647,7 @@ static void shader_arb_select(const struct wined3d_context *context, enum wined3
                 priv->pshader_const_dirty[i] = 1;
             }
             /* Also takes care of loading local constants */
-            shader_arb_load_constants_internal(context, TRUE, FALSE, TRUE);
+            shader_arb_load_constants_internal(shader_priv, context, state, TRUE, FALSE, TRUE);
         }
         else
         {
@@ -4680,18 +4671,28 @@ static void shader_arb_select(const struct wined3d_context *context, enum wined3
             checkGLcall("glDisable(GL_FRAGMENT_PROGRAM_ARB)");
             priv->current_fprogram_id = 0;
         }
-        priv->fragment_pipe->enable_extension(gl_info, fragment_mode == WINED3D_SHADER_MODE_FFP);
+        priv->fragment_pipe->enable_extension(gl_info, TRUE);
     }
 
-    if (vertex_mode == WINED3D_SHADER_MODE_SHADER)
+    if (use_vs(state))
     {
         struct wined3d_shader *vs = state->vertex_shader;
         struct arb_vs_compile_args compile_args;
         struct arb_vs_compiled_shader *compiled;
+        const struct wined3d_shader_signature_element *ps_input_sig;
 
         TRACE("Using vertex shader %p\n", vs);
         find_arb_vs_compile_args(state, context, vs, &compile_args);
-        compiled = find_arb_vshader(vs, &compile_args);
+
+        /* Instead of searching for the signature in the signature list, read the one from the
+         * current pixel shader. It's maybe not the shader where the signature came from, but it
+         * is the same signature and faster to find. */
+        if (compile_args.ps_signature == ~0U)
+            ps_input_sig = NULL;
+        else
+            ps_input_sig = state->pixel_shader->input_signature;
+
+        compiled = find_arb_vshader(vs, &compile_args, ps_input_sig);
         priv->current_vprogram_id = compiled->prgId;
         priv->compiled_vprog = compiled;
 
@@ -4699,10 +4700,12 @@ static void shader_arb_select(const struct wined3d_context *context, enum wined3
         GL_EXTCALL(glBindProgramARB(GL_VERTEX_PROGRAM_ARB, priv->current_vprogram_id));
         checkGLcall("glBindProgramARB(GL_VERTEX_PROGRAM_ARB, priv->current_vprogram_id);");
 
+        priv->vertex_pipe->vp_enable(gl_info, FALSE);
+
         /* Enable OpenGL vertex programs */
         gl_info->gl_ops.gl.p_glEnable(GL_VERTEX_PROGRAM_ARB);
         checkGLcall("glEnable(GL_VERTEX_PROGRAM_ARB);");
-        TRACE("(%p) : Bound vertex program %u and enabled GL_VERTEX_PROGRAM_ARB\n", device, priv->current_vprogram_id);
+        TRACE("Bound vertex program %u and enabled GL_VERTEX_PROGRAM_ARB\n", priv->current_vprogram_id);
         shader_arb_vs_local_constants(compiled, context, state);
 
         if(priv->last_vs_color_unclamp != compiled->need_color_unclamp) {
@@ -4717,13 +4720,47 @@ static void shader_arb_select(const struct wined3d_context *context, enum wined3
             }
         }
     }
-    else if (gl_info->supported[ARB_VERTEX_PROGRAM])
+    else
+    {
+        if (gl_info->supported[ARB_VERTEX_PROGRAM])
+        {
+            priv->current_vprogram_id = 0;
+            gl_info->gl_ops.gl.p_glDisable(GL_VERTEX_PROGRAM_ARB);
+            checkGLcall("glDisable(GL_VERTEX_PROGRAM_ARB)");
+        }
+        priv->vertex_pipe->vp_enable(gl_info, TRUE);
+    }
+}
+
+
+/* Context activation is done by the caller. */
+static void shader_arb_disable(void *shader_priv, const struct wined3d_context *context)
+{
+    const struct wined3d_gl_info *gl_info = context->gl_info;
+    struct shader_arb_priv *priv = shader_priv;
+
+    if (gl_info->supported[ARB_FRAGMENT_PROGRAM])
+    {
+        gl_info->gl_ops.gl.p_glDisable(GL_FRAGMENT_PROGRAM_ARB);
+        checkGLcall("glDisable(GL_FRAGMENT_PROGRAM_ARB)");
+        priv->current_fprogram_id = 0;
+    }
+    priv->fragment_pipe->enable_extension(gl_info, FALSE);
+
+    if (gl_info->supported[ARB_VERTEX_PROGRAM])
     {
         priv->current_vprogram_id = 0;
         gl_info->gl_ops.gl.p_glDisable(GL_VERTEX_PROGRAM_ARB);
         checkGLcall("glDisable(GL_VERTEX_PROGRAM_ARB)");
     }
-    priv->vertex_pipe->vp_enable(gl_info, vertex_mode == WINED3D_SHADER_MODE_FFP);
+    priv->vertex_pipe->vp_enable(gl_info, FALSE);
+
+    if (gl_info->supported[ARB_COLOR_BUFFER_FLOAT] && priv->last_vs_color_unclamp)
+    {
+        GL_EXTCALL(glClampColorARB(GL_CLAMP_VERTEX_COLOR_ARB, GL_FIXED_ONLY_ARB));
+        checkGLcall("glClampColorARB");
+        priv->last_vs_color_unclamp = FALSE;
+    }
 }
 
 /* Context activation is done by the caller. */
@@ -5621,6 +5658,7 @@ const struct wined3d_shader_backend_ops arb_program_shader_backend =
 {
     shader_arb_handle_instruction,
     shader_arb_select,
+    shader_arb_disable,
     shader_arb_select_depth_blt,
     shader_arb_deselect_depth_blt,
     shader_arb_update_float_vertex_constants,
@@ -6171,11 +6209,12 @@ static GLuint gen_arbfp_ffp_shader(const struct ffp_frag_settings *settings, con
 
     shader_addline(&buffer, "!!ARBfp1.0\n");
 
-    switch(settings->fog) {
-        case FOG_OFF:                                                         break;
-        case FOG_LINEAR: shader_addline(&buffer, "OPTION ARB_fog_linear;\n"); break;
-        case FOG_EXP:    shader_addline(&buffer, "OPTION ARB_fog_exp;\n");    break;
-        case FOG_EXP2:   shader_addline(&buffer, "OPTION ARB_fog_exp2;\n");   break;
+    switch (settings->fog)
+    {
+        case WINED3D_FFP_PS_FOG_OFF:                                                         break;
+        case WINED3D_FFP_PS_FOG_LINEAR: shader_addline(&buffer, "OPTION ARB_fog_linear;\n"); break;
+        case WINED3D_FFP_PS_FOG_EXP:    shader_addline(&buffer, "OPTION ARB_fog_exp;\n");    break;
+        case WINED3D_FFP_PS_FOG_EXP2:   shader_addline(&buffer, "OPTION ARB_fog_exp2;\n");   break;
         default: FIXME("Unexpected fog setting %d\n", settings->fog);
     }
 
@@ -7005,7 +7044,7 @@ static void upload_palette(const struct wined3d_surface *surface, struct wined3d
 {
     BYTE table[256][4];
     struct wined3d_device *device = surface->resource.device;
-    const struct wined3d_gl_info *gl_info = &device->adapter->gl_info;
+    const struct wined3d_gl_info *gl_info = context->gl_info;
     struct arbfp_blit_priv *priv = device->blit_priv;
     BOOL colorkey = (surface->CKeyFlags & WINEDDSD_CKSRCBLT) != 0;
 
@@ -7206,8 +7245,8 @@ static HRESULT arbfp_blit_set(void *blit_priv, struct wined3d_context *context, 
     const struct wined3d_gl_info *gl_info = context->gl_info;
     GLenum textype;
 
-    if (surface->container.type == WINED3D_CONTAINER_TEXTURE)
-        textype = surface->container.u.texture->target;
+    if (surface->container)
+        textype = surface->container->target;
     else
         textype = surface->texture_target;
 
@@ -7390,8 +7429,7 @@ HRESULT arbfp_blit_surface(struct wined3d_device *device, DWORD filter,
     arbfp_blit_unset(context->gl_info);
 
     if (wined3d_settings.strict_draw_ordering
-            || (dst_surface->container.type == WINED3D_CONTAINER_SWAPCHAIN
-            && (dst_surface->container.u.swapchain->front_buffer == dst_surface)))
+            || (dst_surface->swapchain && (dst_surface->swapchain->front_buffer == dst_surface)))
         context->gl_info->gl_ops.gl.p_glFlush(); /* Flush to ensure ordering across contexts. */
 
     context_release(context);

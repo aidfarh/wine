@@ -291,10 +291,9 @@ static HRESULT WINAPI IDirectXFileImpl_RegisterTemplates(IDirectXFile* iface, LP
   HRESULT hr;
   LPBYTE decomp_buffer = NULL;
 
+  ZeroMemory(&buf, sizeof(buf));
   buf.buffer = pvData;
   buf.rem_bytes = cbSize;
-  buf.txt = FALSE;
-  buf.token_present = FALSE;
   buf.pdxf = This;
 
   TRACE("(%p/%p)->(%p,%d)\n", This, iface, pvData, cbSize);
@@ -587,6 +586,9 @@ static HRESULT WINAPI IDirectXFileDataImpl_GetName(IDirectXFileData* iface, LPST
     if (*pdwBufLen < len)
       return DXFILEERR_BADVALUE;
     CopyMemory(pstrNameBuf, This->pobj->name, len);
+    /* Even if we return a size of 0, an empty string with a null byte must be returned */
+    if (*pdwBufLen && !len)
+      pstrNameBuf[0] = 0;
   }
   *pdwBufLen = len;
 
@@ -851,6 +853,9 @@ static HRESULT WINAPI IDirectXFileDataReferenceImpl_GetName(IDirectXFileDataRefe
     if (*pdwBufLen < len)
       return DXFILEERR_BADVALUE;
     CopyMemory(pstrNameBuf, This->ptarget->name, len);
+    /* Even if we return a size of 0, an empty string with a null byte must be returned */
+    if (*pdwBufLen && !len)
+      pstrNameBuf[0] = 0;
   }
   *pdwBufLen = len;
 

@@ -121,15 +121,29 @@ static void object_available(DocHost *This)
     }
 
     hres = IUnknown_QueryInterface(This->document, &IID_IHlinkTarget, (void**)&hlink);
-    if(FAILED(hres)) {
-        FIXME("Could not get IHlinkTarget interface\n");
-        return;
-    }
+    if(SUCCEEDED(hres)) {
+        hres = IHlinkTarget_Navigate(hlink, 0, NULL);
+        IHlinkTarget_Release(hlink);
+        if(FAILED(hres))
+            FIXME("Navigate failed\n");
+    }else {
+        IOleObject *ole_object;
+        RECT rect;
 
-    hres = IHlinkTarget_Navigate(hlink, 0, NULL);
-    IHlinkTarget_Release(hlink);
-    if(FAILED(hres))
-        FIXME("Navigate failed\n");
+        TRACE("No IHlink iface\n");
+
+        hres = IUnknown_QueryInterface(This->document, &IID_IOleObject, (void**)&ole_object);
+        if(FAILED(hres)) {
+            FIXME("Could not get IOleObject iface: %08x\n", hres);
+            return;
+        }
+
+        GetClientRect(This->hwnd, &rect);
+        hres = IOleObject_DoVerb(ole_object, OLEIVERB_SHOW, NULL, &This->IOleClientSite_iface, -1, This->hwnd, &rect);
+        IOleObject_Release(ole_object);
+        if(FAILED(hres))
+            FIXME("DoVerb failed: %08x\n", hres);
+    }
 }
 
 static HRESULT get_doc_ready_state(DocHost *This, READYSTATE *ret)
@@ -296,6 +310,10 @@ HRESULT dochost_object_available(DocHost *This, IUnknown *doc)
             push_ready_state_task(This, READYSTATE_COMPLETE);
         if(ready_state != READYSTATE_COMPLETE || This->doc_navigate)
             advise_prop_notif(This, TRUE);
+    }else if(!This->doc_navigate) {
+        /* If we can't get document's ready state, there is not much we can do.
+         * Assume that document is complete at this point. */
+        push_ready_state_task(This, READYSTATE_COMPLETE);
     }
 
     return S_OK;

@@ -26,10 +26,11 @@
 
 @interface WineWindow : NSPanel <NSWindowDelegate>
 {
-    NSUInteger normalStyleMask;
     BOOL disabled;
     BOOL noActivate;
     BOOL floating;
+    BOOL fullscreen;
+    BOOL pendingMinimize;
     WineWindow* latentParentWindow;
 
     void* hwnd;
@@ -48,8 +49,6 @@
 
     NSUInteger lastModifierFlags;
 
-    NSInteger levelWhenActive;
-
     NSTimer* liveResizeDisplayTimer;
 
     void* imeData;
@@ -62,8 +61,9 @@
 
 @property (retain, readonly, nonatomic) WineEventQueue* queue;
 @property (readonly, nonatomic) BOOL floating;
-@property (readonly, nonatomic) NSInteger levelWhenActive;
+@property (readonly, getter=isFullscreen, nonatomic) BOOL fullscreen;
 
-    - (void) adjustWindowLevel;
+    - (NSInteger) minimumLevelForActive:(BOOL)active;
+    - (void) updateFullscreen;
 
 @end

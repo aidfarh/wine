@@ -93,7 +93,6 @@ static inline BOOL can_activate_window(HWND hwnd)
 
     if (!(style & WS_VISIBLE)) return FALSE;
     if ((style & (WS_POPUP|WS_CHILD)) == WS_CHILD) return FALSE;
-    if (style & WS_MINIMIZE) return FALSE;
     if (GetWindowLongW(hwnd, GWL_EXSTYLE) & WS_EX_NOACTIVATE) return FALSE;
     if (hwnd == GetDesktopWindow()) return FALSE;
     if (GetWindowRect(hwnd, &rect) && IsRectEmpty(&rect)) return FALSE;
@@ -535,6 +534,8 @@ static void destroy_cocoa_window(struct macdrv_win_data *data)
     data->color_key = CLR_INVALID;
     if (data->surface) window_surface_release(data->surface);
     data->surface = NULL;
+    if (data->unminimized_surface) window_surface_release(data->unminimized_surface);
+    data->unminimized_surface = NULL;
 }
 
 
@@ -960,7 +961,7 @@ void CDECL macdrv_SetWindowStyle(HWND hwnd, INT offset, STYLESTRUCT *style)
 {
     struct macdrv_win_data *data;
 
-    TRACE("%p, %d, %p\n", hwnd, offset, style);
+    TRACE("hwnd %p offset %d styleOld 0x%08x styleNew 0x%08x\n", hwnd, offset, style->styleOld, style->styleNew);
 
     if (hwnd == GetDesktopWindow()) return;
     if (!(data = get_win_data(hwnd))) return;
@@ -1108,6 +1109,11 @@ BOOL CDECL macdrv_UpdateLayeredWindow(HWND hwnd, const UPDATELAYEREDWINDOWINFO *
         set_window_surface(data->cocoa_window, data->surface);
         if (surface) window_surface_release(surface);
         surface = data->surface;
+        if (data->unminimized_surface)
+        {
+            window_surface_release(data->unminimized_surface);
+            data->unminimized_surface = NULL;
+        }
     }
     else set_surface_use_alpha(surface, TRUE);
 
@@ -1333,7 +1339,23 @@ void CDECL macdrv_WindowPosChanged(HWND hwnd, HWND insert_after, UINT swp_flags,
     if (!data->ulw_layered)
     {
         if (surface) window_surface_add_ref(surface);
-        set_window_surface(data->cocoa_window, surface);
+        if (new_style & WS_MINIMIZE)
+        {
+            if (!data->unminimized_surface && data->surface)
+            {
+                data->unminimized_surface = data->surface;
+                window_surface_add_ref(data->unminimized_surface);
+            }
+        }
+        else
+        {
+            set_window_surface(data->cocoa_window, surface);
+            if (data->unminimized_surface)
+            {
+                window_surface_release(data->unminimized_surface);
+                data->unminimized_surface = NULL;
+            }
+        }
         if (data->surface) window_surface_release(data->surface);
         data->surface = surface;
     }
@@ -1478,7 +1500,7 @@ void macdrv_window_frame_changed(HWND hwnd, CGRect frame)
 
     if (!hwnd) return;
     if (!(data = get_win_data(hwnd))) return;
-    if (!data->on_screen)
+    if (!data->on_screen || data->minimized)
     {
         release_win_data(data);
         return;
@@ -1525,14 +1547,15 @@ void macdrv_window_frame_changed(HWND hwnd, CGRect frame)
  */
 void macdrv_window_got_focus(HWND hwnd, const macdrv_event *event)
 {
+    LONG style = GetWindowLongW(hwnd, GWL_STYLE);
+
     if (!hwnd) return;
 
     TRACE("win %p/%p serial %lu enabled %d visible %d style %08x focus %p active %p fg %p\n",
           hwnd, event->window, event->window_got_focus.serial, IsWindowEnabled(hwnd),
-          IsWindowVisible(hwnd), GetWindowLongW(hwnd, GWL_STYLE), GetFocus(),
-          GetActiveWindow(), GetForegroundWindow());
+          IsWindowVisible(hwnd), style, GetFocus(), GetActiveWindow(), GetForegroundWindow());
 
-    if (can_activate_window(hwnd))
+    if (can_activate_window(hwnd) && !(style & WS_MINIMIZE))
     {
         /* simulate a mouse click on the caption to find out
          * whether the window wants to be activated */
@@ -1564,7 +1587,11 @@ void macdrv_window_lost_focus(HWND hwnd, const macdrv_event *event)
     TRACE("win %p/%p fg %p\n", hwnd, event->window, GetForegroundWindow());
 
     if (hwnd == GetForegroundWindow())
+    {
         SendMessageW(hwnd, WM_CANCELMODE, 0, 0);
+        if (hwnd == GetForegroundWindow())
+            SetForegroundWindow(GetDesktopWindow());
+    }
 }
 
 

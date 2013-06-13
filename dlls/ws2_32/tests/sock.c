@@ -3571,12 +3571,16 @@ static void test_events(int useMessages)
         goto end;
     }
 
+    ok(!set_blocking(src, TRUE), "set_blocking failed, error %d\n", WSAGetLastError());
+
     src2 = socket(AF_INET, SOCK_STREAM, 0);
     if (src2 == INVALID_SOCKET)
     {
         ok(0, "creating socket pair failed (%d), skipping test\n", GetLastError());
         goto end;
     }
+
+    ok(!set_blocking(src2, TRUE), "set_blocking failed, error %d\n", WSAGetLastError());
 
     len = sizeof(BOOL);
     if (getsockopt(src, SOL_SOCKET, SO_OOBINLINE, (void *)&bret, &len) == SOCKET_ERROR)
@@ -3618,12 +3622,18 @@ static void test_events(int useMessages)
             goto end;
         }
 
+        ok(set_blocking(src, TRUE) == SOCKET_ERROR, "set_blocking should failed!\n");
+        ok(WSAGetLastError() == WSAEINVAL, "expect WSAEINVAL, returned %x\n", WSAGetLastError());
+
         ret = WSAAsyncSelect(src2, hWnd, WM_SOCKET, FD_CONNECT | FD_READ | FD_OOB | FD_WRITE | FD_CLOSE);
         if (ret)
         {
             ok(0, "WSAAsyncSelect failed, error %d\n", ret);
             goto end;
         }
+
+        ok(set_blocking(src2, TRUE) == SOCKET_ERROR, "set_blocking should failed!\n");
+        ok(WSAGetLastError() == WSAEINVAL, "expect WSAEINVAL, returned %x\n", WSAGetLastError());
     }
     else
     {
@@ -3650,12 +3660,18 @@ static void test_events(int useMessages)
             goto end;
         }
 
+        ok(set_blocking(src, TRUE) == SOCKET_ERROR, "set_blocking should failed!\n");
+        ok(WSAGetLastError() == WSAEINVAL, "expect WSAEINVAL, returned %x\n", WSAGetLastError());
+
         ret = WSAEventSelect(src2, hEvent2, FD_CONNECT | FD_READ | FD_OOB | FD_WRITE | FD_CLOSE);
         if (ret)
         {
             ok(0, "WSAEventSelect failed, error %d\n", ret);
             goto end;
         }
+
+        ok(set_blocking(src2, TRUE) == SOCKET_ERROR, "set_blocking should failed!\n");
+        ok(WSAGetLastError() == WSAEINVAL, "expect WSAEINVAL, returned %x\n", WSAGetLastError());
     }
 
     server = socket(AF_INET, SOCK_STREAM, 0);
@@ -3988,6 +4004,47 @@ static void test_events(int useMessages)
     ok(ret == 1, "Sending to half-closed socket failed %d err %d\n", ret, GetLastError());
     ok_event_seq(src2, hEvent2, empty_seq, NULL, 0);
 
+    if (useMessages)
+    {
+        ret = WSAAsyncSelect(src, hWnd, WM_SOCKET, 0);
+        if (ret)
+        {
+            ok(0, "WSAAsyncSelect failed, error %d\n", ret);
+            goto end;
+        }
+
+        ok(!set_blocking(src, TRUE), "set_blocking failed, error %d\n", WSAGetLastError());
+
+        ret = WSAAsyncSelect(src2, hWnd, WM_SOCKET, 0);
+        if (ret)
+        {
+            ok(0, "WSAAsyncSelect failed, error %d\n", ret);
+            goto end;
+        }
+
+        ok(!set_blocking(src2, TRUE), "set_blocking failed, error %d\n", WSAGetLastError());
+    }
+    else
+    {
+        ret = WSAEventSelect(src, hEvent2, 0);
+        if (ret)
+        {
+            ok(0, "WSAAsyncSelect failed, error %d\n", ret);
+            goto end;
+        }
+
+        ok(!set_blocking(src, TRUE), "set_blocking failed, error %d\n", WSAGetLastError());
+
+        ret = WSAEventSelect(src2, hEvent2, 0);
+        if (ret)
+        {
+            ok(0, "WSAAsyncSelect failed, error %d\n", ret);
+            goto end;
+        }
+
+        ok(!set_blocking(src2, TRUE), "set_blocking failed, error %d\n", WSAGetLastError());
+    }
+
 end:
     if (src != INVALID_SOCKET)
     {
@@ -4176,6 +4233,8 @@ static void test_WSARecv(void)
     todo_wine ok(!bret && (GetLastError() == ERROR_NETNAME_DELETED || broken(GetLastError() == ERROR_IO_INCOMPLETE) /* win9x */),
         "Did not get disconnect event: %d, error %d\n", bret, GetLastError());
     ok(bytesReturned == 0, "Bytes received is %d\n", bytesReturned);
+    closesocket(dest);
+    dest = INVALID_SOCKET;
 
     src = WSASocketW(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, 0);
     ok(src != INVALID_SOCKET, "failed to create socket %d\n", WSAGetLastError());

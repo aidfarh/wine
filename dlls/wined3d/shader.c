@@ -4,7 +4,7 @@
  * Copyright 2004 Christian Costa
  * Copyright 2005 Oliver Stieber
  * Copyright 2006 Ivan Gyurdiev
- * Copyright 2007-2008 Stefan Dösinger for CodeWeavers
+ * Copyright 2007-2008, 2013 Stefan Dösinger for CodeWeavers
  * Copyright 2009-2011 Henri Verbeet for CodeWeavers
  *
  * This library is free software; you can redistribute it and/or
@@ -1509,21 +1509,32 @@ static void shader_none_select_depth_blt(void *shader_priv, const struct wined3d
 static void shader_none_deselect_depth_blt(void *shader_priv, const struct wined3d_gl_info *gl_info) {}
 static void shader_none_update_float_vertex_constants(struct wined3d_device *device, UINT start, UINT count) {}
 static void shader_none_update_float_pixel_constants(struct wined3d_device *device, UINT start, UINT count) {}
-static void shader_none_load_constants(const struct wined3d_context *context, BOOL usePS, BOOL useVS) {}
+static void shader_none_load_constants(void *shader_priv, const struct wined3d_context *context,
+        const struct wined3d_state *state) {}
 static void shader_none_load_np2fixup_constants(void *shader_priv,
         const struct wined3d_gl_info *gl_info, const struct wined3d_state *state) {}
 static void shader_none_destroy(struct wined3d_shader *shader) {}
 static void shader_none_context_destroyed(void *shader_priv, const struct wined3d_context *context) {}
 
-static void shader_none_select(const struct wined3d_context *context, enum wined3d_shader_mode vertex_mode,
-        enum wined3d_shader_mode fragment_mode)
+/* Context activation is done by the caller. */
+static void shader_none_select(void *shader_priv, const struct wined3d_context *context,
+        const struct wined3d_state *state)
 {
     const struct wined3d_gl_info *gl_info = context->gl_info;
-    struct wined3d_device *device = context->swapchain->device;
-    struct shader_none_priv *priv = device->shader_priv;
+    struct shader_none_priv *priv = shader_priv;
 
-    priv->vertex_pipe->vp_enable(gl_info, vertex_mode == WINED3D_SHADER_MODE_FFP);
-    priv->fragment_pipe->enable_extension(gl_info, fragment_mode == WINED3D_SHADER_MODE_FFP);
+    priv->vertex_pipe->vp_enable(gl_info, !use_vs(state));
+    priv->fragment_pipe->enable_extension(gl_info, !use_ps(state));
+}
+
+/* Context activation is done by the caller. */
+static void shader_none_disable(void *shader_priv, const struct wined3d_context *context)
+{
+    struct shader_none_priv *priv = shader_priv;
+    const struct wined3d_gl_info *gl_info = context->gl_info;
+
+    priv->vertex_pipe->vp_enable(gl_info, FALSE);
+    priv->fragment_pipe->enable_extension(gl_info, FALSE);
 }
 
 static HRESULT shader_none_alloc(struct wined3d_device *device, const struct wined3d_vertex_pipe_ops *vertex_pipe,
@@ -1602,6 +1613,7 @@ const struct wined3d_shader_backend_ops none_shader_backend =
 {
     shader_none_handle_instruction,
     shader_none_select,
+    shader_none_disable,
     shader_none_select_depth_blt,
     shader_none_deselect_depth_blt,
     shader_none_update_float_vertex_constants,
@@ -2142,7 +2154,7 @@ void find_ps_compile_args(const struct wined3d_state *state,
             args->vp_mode = vertexshader;
         else
             args->vp_mode = fixedfunction;
-        args->fog = FOG_OFF;
+        args->fog = WINED3D_FFP_PS_FOG_OFF;
     }
     else
     {
@@ -2154,27 +2166,27 @@ void find_ps_compile_args(const struct wined3d_state *state,
                 case WINED3D_FOG_NONE:
                     if (device->stream_info.position_transformed || use_vs(state))
                     {
-                        args->fog = FOG_LINEAR;
+                        args->fog = WINED3D_FFP_PS_FOG_LINEAR;
                         break;
                     }
 
                     switch (state->render_states[WINED3D_RS_FOGVERTEXMODE])
                     {
                         case WINED3D_FOG_NONE: /* Fall through. */
-                        case WINED3D_FOG_LINEAR: args->fog = FOG_LINEAR; break;
-                        case WINED3D_FOG_EXP:    args->fog = FOG_EXP;    break;
-                        case WINED3D_FOG_EXP2:   args->fog = FOG_EXP2;   break;
+                        case WINED3D_FOG_LINEAR: args->fog = WINED3D_FFP_PS_FOG_LINEAR; break;
+                        case WINED3D_FOG_EXP:    args->fog = WINED3D_FFP_PS_FOG_EXP;    break;
+                        case WINED3D_FOG_EXP2:   args->fog = WINED3D_FFP_PS_FOG_EXP2;   break;
                     }
                     break;
 
-                case WINED3D_FOG_LINEAR: args->fog = FOG_LINEAR; break;
-                case WINED3D_FOG_EXP:    args->fog = FOG_EXP;    break;
-                case WINED3D_FOG_EXP2:   args->fog = FOG_EXP2;   break;
+                case WINED3D_FOG_LINEAR: args->fog = WINED3D_FFP_PS_FOG_LINEAR; break;
+                case WINED3D_FOG_EXP:    args->fog = WINED3D_FFP_PS_FOG_EXP;    break;
+                case WINED3D_FOG_EXP2:   args->fog = WINED3D_FFP_PS_FOG_EXP2;   break;
             }
         }
         else
         {
-            args->fog = FOG_OFF;
+            args->fog = WINED3D_FFP_PS_FOG_OFF;
         }
     }
 }

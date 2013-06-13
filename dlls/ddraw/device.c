@@ -1111,7 +1111,7 @@ static HRESULT d3d_device7_EnumTextureFormats(IDirect3DDevice7 *iface,
 
             memset(&pformat, 0, sizeof(pformat));
             pformat.dwSize = sizeof(pformat);
-            PixelFormat_WineD3DtoDD(&pformat, FormatList[i]);
+            ddrawformat_from_wined3dformat(&pformat, FormatList[i]);
 
             TRACE("Enumerating WineD3DFormat %d\n", FormatList[i]);
             hr = callback(&pformat, context);
@@ -1134,7 +1134,7 @@ static HRESULT d3d_device7_EnumTextureFormats(IDirect3DDevice7 *iface,
 
             memset(&pformat, 0, sizeof(pformat));
             pformat.dwSize = sizeof(pformat);
-            PixelFormat_WineD3DtoDD(&pformat, BumpFormatList[i]);
+            ddrawformat_from_wined3dformat(&pformat, BumpFormatList[i]);
 
             TRACE("Enumerating WineD3DFormat %d\n", BumpFormatList[i]);
             hr = callback(&pformat, context);
@@ -1242,7 +1242,7 @@ static HRESULT WINAPI d3d_device2_EnumTextureFormats(IDirect3DDevice2 *iface,
             sdesc.dwFlags = DDSD_PIXELFORMAT | DDSD_CAPS;
             sdesc.ddsCaps.dwCaps = DDSCAPS_TEXTURE;
             sdesc.ddpfPixelFormat.dwSize = sizeof(sdesc.ddpfPixelFormat);
-            PixelFormat_WineD3DtoDD(&sdesc.ddpfPixelFormat, FormatList[i]);
+            ddrawformat_from_wined3dformat(&sdesc.ddpfPixelFormat, FormatList[i]);
 
             TRACE("Enumerating WineD3DFormat %d\n", FormatList[i]);
             hr = callback(&sdesc, context);
@@ -2463,7 +2463,7 @@ static HRESULT WINAPI d3d_device3_GetRenderState(IDirect3DDevice3 *iface,
 
                         wined3d_resource_get_desc(sub_resource, &desc);
                         ddfmt.dwSize = sizeof(ddfmt);
-                        PixelFormat_WineD3DtoDD(&ddfmt, desc.format);
+                        ddrawformat_from_wined3dformat(&ddfmt, desc.format);
                         if (ddfmt.u5.dwRGBAlphaBitMask) tex_alpha = TRUE;
                     }
                 }
@@ -2752,7 +2752,7 @@ static HRESULT WINAPI d3d_device3_SetRenderState(IDirect3DDevice3 *iface,
 
                             wined3d_resource_get_desc(sub_resource, &desc);
                             ddfmt.dwSize = sizeof(ddfmt);
-                            PixelFormat_WineD3DtoDD(&ddfmt, desc.format);
+                            ddrawformat_from_wined3dformat(&ddfmt, desc.format);
                             if (ddfmt.u5.dwRGBAlphaBitMask) tex_alpha = TRUE;
                         }
                     }
@@ -4616,7 +4616,7 @@ static HRESULT WINAPI d3d_device3_SetTexture(IDirect3DDevice3 *iface,
 
                 wined3d_resource_get_desc(sub_resource, &desc);
                 ddfmt.dwSize = sizeof(ddfmt);
-                PixelFormat_WineD3DtoDD(&ddfmt, desc.format);
+                ddrawformat_from_wined3dformat(&ddfmt, desc.format);
                 if (ddfmt.u5.dwRGBAlphaBitMask) tex_alpha = TRUE;
             }
         }
@@ -6741,7 +6741,7 @@ HRESULT d3d_device_create(struct ddraw *ddraw, struct ddraw_surface *target,
     TRACE("ddraw %p, target %p, version %u, device %p, outer_unknown %p.\n",
             ddraw, target, version, device, outer_unknown);
 
-    if (DefaultSurfaceType != DDRAW_SURFACE_TYPE_OPENGL)
+    if (ddraw->flags & DDRAW_NO3D)
     {
         ERR_(winediag)("The application wants to create a Direct3D device, "
                 "but the current DirectDrawRenderer does not support this.\n");

@@ -647,7 +647,6 @@ static WORD parse_TOKEN(parse_buffer * buf)
       char c;
       if (!read_bytes(buf, &c, 1))
         return TOKEN_NONE;
-      /*TRACE("char = '%c'\n", is_space(c) ? ' ' : c);*/
       if ((c == '#') || (c == '/'))
       {
         /* Handle comment (# or //) */
@@ -718,10 +717,7 @@ static WORD parse_TOKEN(parse_buffer * buf)
   }
   else
   {
-    static int nb_elem;
-    static int is_float;
-
-    if (!nb_elem)
+    if (!buf->list_nb_elements)
     {
       if (!read_bytes(buf, &token, 2))
         return TOKEN_NONE;
@@ -729,34 +725,44 @@ static WORD parse_TOKEN(parse_buffer * buf)
       /* Convert integer and float list into separate elements */
       if (token == TOKEN_INTEGER_LIST)
       {
-        if (!read_bytes(buf, &nb_elem, 4))
+        if (!read_bytes(buf, &buf->list_nb_elements, 4))
           return TOKEN_ERROR;
         token = TOKEN_INTEGER;
-        is_float = FALSE;
-        TRACE("Integer list (TOKEN_INTEGER_LIST) of size %d\n", nb_elem);
+        buf->list_type_float = FALSE;
+        TRACE("Integer list (TOKEN_INTEGER_LIST) of size %d\n", buf->list_nb_elements);
       }
       else if (token == TOKEN_FLOAT_LIST)
       {
-        if (!read_bytes(buf, &nb_elem, 4))
+        if (!read_bytes(buf, &buf->list_nb_elements, 4))
           return TOKEN_ERROR;
         token = TOKEN_FLOAT;
-        is_float = TRUE;
-        TRACE("Float list (TOKEN_FLOAT_LIST) of size %d\n", nb_elem);
+        buf->list_type_float = TRUE;
+        TRACE("Float list (TOKEN_FLOAT_LIST) of size %d\n", buf->list_nb_elements);
       }
     }
 
-    if (nb_elem)
+    if (buf->list_nb_elements)
     {
-      token = is_float ? TOKEN_FLOAT : TOKEN_INTEGER;
-      nb_elem--;
-        {
-          DWORD integer;
+      if (buf->list_separator)
+      {
+        buf->list_nb_elements--;
+        buf->list_separator = FALSE;
+        /* Insert separarator between each values and since list does not accept separator at the end
+           use a comma so any extra separator will generate an error */
+        token = TOKEN_COMMA;
+      }
+      else
+      {
+        DWORD value;
 
-          if (!read_bytes(buf, &integer, 4))
-            return TOKEN_ERROR;
+        if (!read_bytes(buf, &value, 4))
+          return TOKEN_ERROR;
+        *(DWORD*)buf->value = value;
 
-          *(DWORD*)buf->value = integer;
-        }
+        buf->list_separator = TRUE;
+        /* Convert list into a serie of their basic type counterpart */
+        token = buf->list_type_float ? TOKEN_FLOAT : TOKEN_INTEGER;
+      }
       dump_TOKEN(token);
       return token;
     }
@@ -766,16 +772,14 @@ static WORD parse_TOKEN(parse_buffer * buf)
       case TOKEN_NAME:
         {
           DWORD count;
-          char strname[100];
+          char *name = (char*)buf->value;
 
           if (!read_bytes(buf, &count, 4))
             return TOKEN_ERROR;
-          if (!read_bytes(buf, strname, count))
+          if (!read_bytes(buf, name, count))
             return TOKEN_ERROR;
-          strname[count] = 0;
-          /*TRACE("name = %s\n", strname);*/
-
-          strcpy((char*)buf->value, strname);
+          name[count] = 0;
+          TRACE("name = %s\n", name);
         }
         break;
       case TOKEN_INTEGER:
@@ -784,7 +788,7 @@ static WORD parse_TOKEN(parse_buffer * buf)
 
           if (!read_bytes(buf, &integer, 4))
             return TOKEN_ERROR;
-          /*TRACE("integer = %ld\n", integer);*/
+          TRACE("integer = %u\n", integer);
 
           *(DWORD*)buf->value = integer;
         }
@@ -799,7 +803,7 @@ static WORD parse_TOKEN(parse_buffer * buf)
           sprintf(strguid, CLSIDFMT, class_id.Data1, class_id.Data2, class_id.Data3, class_id.Data4[0],
             class_id.Data4[1], class_id.Data4[2], class_id.Data4[3], class_id.Data4[4], class_id.Data4[5],
             class_id.Data4[6], class_id.Data4[7]);
-          /*TRACE("guid = {%s}\n", strguid);*/
+          TRACE("guid = %s\n", strguid);
 
           *(GUID*)buf->value = class_id;
         }
@@ -808,19 +812,19 @@ static WORD parse_TOKEN(parse_buffer * buf)
         {
           DWORD count;
           WORD tmp_token;
-          char strname[100];
+          char *string = (char*)buf->value;
+
           if (!read_bytes(buf, &count, 4))
             return TOKEN_ERROR;
-          if (!read_bytes(buf, strname, count))
+          if (!read_bytes(buf, string, count))
             return TOKEN_ERROR;
-          strname[count] = 0;
+          string[count] = 0;
           if (!read_bytes(buf, &tmp_token, 2))
             return TOKEN_ERROR;
           if ((tmp_token != TOKEN_COMMA) && (tmp_token != TOKEN_SEMICOLON))
             ERR("No comma or semicolon (got %d)\n", tmp_token);
-          /*TRACE("name = %s\n", strname);*/
+          TRACE("string = %s\n", string);
 
-          strcpy((char*)buf->value, strname);
           token = TOKEN_LPSTR;
         }
         break;
@@ -1141,6 +1145,7 @@ static BOOL parse_object_members_list(parse_buffer * buf)
   {
     ULONG k;
     ULONG nb_elems = 1;
+    BOOL basic_type = TRUE;
 
     buf->pxo->members[i].name = pt->members[i].name;
     buf->pxo->members[i].start = buf->cur_pos_data;
@@ -1157,26 +1162,12 @@ static BOOL parse_object_members_list(parse_buffer * buf)
 
     for (k = 0; k < nb_elems; k++)
     {
-      if (buf->txt && k)
-      {
-        token = check_TOKEN(buf);
-        if (token == TOKEN_COMMA)
-        {
-          get_TOKEN(buf);
-        }
-        else
-        {
-          /* Allow comma omission */
-          if (!((token == TOKEN_FLOAT) || (token == TOKEN_INTEGER)))
-            return FALSE;
-        }
-      }
-
       if (pt->members[i].type == TOKEN_NAME)
       {
         ULONG j;
 
         TRACE("Found sub-object %s\n", buf->pdxf->xtemplates[pt->members[i].idx_template].name);
+        basic_type = FALSE;
         buf->level++;
         /* To do template lookup */
         for (j = 0; j < buf->pdxf->nb_xtemplates; j++)
@@ -1270,23 +1261,26 @@ static BOOL parse_object_members_list(parse_buffer * buf)
           }
         }
         else
-	{
-          FIXME("Unexpected token %d\n", token);
+        {
+          WARN("Unexpected token %d\n", token);
           return FALSE;
         }
       }
+
+      if (basic_type)
+      {
+        /* Handle separator only for basic types */
+        token = check_TOKEN(buf);
+        if ((token != TOKEN_COMMA) && (token != TOKEN_SEMICOLON))
+          return FALSE;
+        /* Allow multi-semicolons + single comma separator */
+        while (check_TOKEN(buf) == TOKEN_SEMICOLON)
+          get_TOKEN(buf);
+        if (check_TOKEN(buf) == TOKEN_COMMA)
+          get_TOKEN(buf);
+      }
     }
 
-    /* Empty arrays can have the semicolon at the end or not so remove it if any and skip next check */
-    if (!nb_elems && (check_TOKEN(buf) == TOKEN_SEMICOLON))
-      get_TOKEN(buf);
-
-    if (nb_elems && buf->txt && (check_TOKEN(buf) != TOKEN_CBRACE) && (check_TOKEN(buf) != TOKEN_NAME))
-    {
-      token = get_TOKEN(buf);
-      if ((token != TOKEN_SEMICOLON) && (token != TOKEN_COMMA))
-        return FALSE;
-    }
     buf->pxo->members[i].size = buf->cur_pos_data - buf->pxo->members[i].start;
   }
 
@@ -1303,10 +1297,6 @@ static BOOL parse_object_parts(parse_buffer * buf, BOOL allow_optional)
   if (allow_optional)
   {
     buf->pxo->size = buf->cur_pos_data - buf->pxo->pos_data;
-
-    /* Skip trailing semicolon */
-    while (check_TOKEN(buf) == TOKEN_SEMICOLON)
-      get_TOKEN(buf);
 
     while (1)
     {

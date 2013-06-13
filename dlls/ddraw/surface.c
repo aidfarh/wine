@@ -4328,7 +4328,7 @@ static HRESULT WINAPI ddraw_surface7_SetSurfaceDesc(IDirectDrawSurface7 *iface, 
     if (DDSD->dwFlags & DDSD_PIXELFORMAT)
     {
         enum wined3d_format_id current_format_id;
-        format_id = PixelFormat_DD2WineD3D(&DDSD->u4.ddpfPixelFormat);
+        format_id = wined3dformat_from_ddrawformat(&DDSD->u4.ddpfPixelFormat);
 
         if (format_id == WINED3DFMT_UNKNOWN)
         {
@@ -4336,7 +4336,7 @@ static HRESULT WINAPI ddraw_surface7_SetSurfaceDesc(IDirectDrawSurface7 *iface, 
             wined3d_mutex_unlock();
             return DDERR_INVALIDPARAMS;
         }
-        current_format_id = PixelFormat_DD2WineD3D(&This->surface_desc.u4.ddpfPixelFormat);
+        current_format_id = wined3dformat_from_ddrawformat(&This->surface_desc.u4.ddpfPixelFormat);
         if (format_id != current_format_id)
         {
             TRACE("Surface format changed from %#x to %#x.\n", current_format_id, format_id);
@@ -4345,7 +4345,7 @@ static HRESULT WINAPI ddraw_surface7_SetSurfaceDesc(IDirectDrawSurface7 *iface, 
     }
     else
     {
-        format_id = PixelFormat_DD2WineD3D(&This->surface_desc.u4.ddpfPixelFormat);
+        format_id = wined3dformat_from_ddrawformat(&This->surface_desc.u4.ddpfPixelFormat);
     }
 
     if (update_wined3d)
@@ -5585,12 +5585,12 @@ static const struct wined3d_parent_ops ddraw_texture_wined3d_parent_ops =
     ddraw_texture_wined3d_object_destroyed,
 };
 
-HRESULT ddraw_surface_create_texture(struct ddraw_surface *surface)
+HRESULT ddraw_surface_create_texture(struct ddraw_surface *surface, DWORD surface_flags)
 {
     const DDSURFACEDESC2 *desc = &surface->surface_desc;
+    struct wined3d_resource_desc wined3d_desc;
     struct ddraw_surface *mip, **attach;
     struct wined3d_resource *resource;
-    enum wined3d_format_id format;
     UINT layers, levels, i, j;
     DDSURFACEDESC2 *mip_desc;
     enum wined3d_pool pool;
@@ -5613,13 +5613,28 @@ HRESULT ddraw_surface_create_texture(struct ddraw_surface *surface)
     else
         pool = WINED3D_POOL_DEFAULT;
 
-    format = PixelFormat_DD2WineD3D(&surface->surface_desc.u4.ddpfPixelFormat);
+    wined3d_desc.format = wined3dformat_from_ddrawformat(&surface->surface_desc.u4.ddpfPixelFormat);
+    wined3d_desc.multisample_type = WINED3D_MULTISAMPLE_NONE;
+    wined3d_desc.multisample_quality = 0;
+    wined3d_desc.usage = 0;
+    wined3d_desc.pool = pool;
+    wined3d_desc.width = desc->dwWidth;
+    wined3d_desc.height = desc->dwHeight;
+    wined3d_desc.depth = 1;
+    wined3d_desc.size = 0;
+
     if (desc->ddsCaps.dwCaps2 & DDSCAPS2_CUBEMAP)
-        hr = wined3d_texture_create_cube(surface->ddraw->wined3d_device, desc->dwWidth,
-                levels, 0, format, pool, surface, &ddraw_texture_wined3d_parent_ops, &surface->wined3d_texture);
+    {
+        wined3d_desc.resource_type = WINED3D_RTYPE_CUBE_TEXTURE;
+        hr = wined3d_texture_create_cube(surface->ddraw->wined3d_device, &wined3d_desc, levels,
+                surface_flags, surface, &ddraw_texture_wined3d_parent_ops, &surface->wined3d_texture);
+    }
     else
-        hr = wined3d_texture_create_2d(surface->ddraw->wined3d_device, desc->dwWidth, desc->dwHeight,
-                levels, 0, format, pool, surface, &ddraw_texture_wined3d_parent_ops, &surface->wined3d_texture);
+    {
+        wined3d_desc.resource_type = WINED3D_RTYPE_TEXTURE;
+        hr = wined3d_texture_create_2d(surface->ddraw->wined3d_device, &wined3d_desc, levels,
+                surface_flags, surface, &ddraw_texture_wined3d_parent_ops, &surface->wined3d_texture);
+    }
 
     if (FAILED(hr))
     {
@@ -5682,10 +5697,10 @@ HRESULT ddraw_surface_create_texture(struct ddraw_surface *surface)
     return DD_OK;
 }
 
-HRESULT ddraw_surface_init(struct ddraw_surface *surface, struct ddraw *ddraw, DDSURFACEDESC2 *desc, UINT version)
+HRESULT ddraw_surface_init(struct ddraw_surface *surface, struct ddraw *ddraw,
+        DDSURFACEDESC2 *desc, DWORD flags, UINT version)
 {
     enum wined3d_pool pool = WINED3D_POOL_DEFAULT;
-    DWORD flags = WINED3D_SURFACE_MAPPABLE;
     enum wined3d_format_id format;
     DWORD usage = 0;
     HRESULT hr;
@@ -5698,13 +5713,6 @@ HRESULT ddraw_surface_init(struct ddraw_surface *surface, struct ddraw *ddraw, D
          * right after creation. */
         desc->ddsCaps.dwCaps |= DDSCAPS_LOCALVIDMEM | DDSCAPS_VIDEOMEMORY;
     }
-
-    /* Some applications assume surfaces will always be mapped at the same
-     * address. Some of those also assume that this address is valid even when
-     * the surface isn't mapped, and that updates done this way will be
-     * visible on the screen. The game Nox is such an application,
-     * Commandos: Behind Enemy Lines is another. */
-    flags |= WINED3D_SURFACE_PIN_SYSMEM;
 
     if (desc->ddsCaps.dwCaps & DDSCAPS_PRIMARYSURFACE)
     {
@@ -5745,7 +5753,7 @@ HRESULT ddraw_surface_init(struct ddraw_surface *surface, struct ddraw *ddraw, D
         desc->ddsCaps.dwCaps |= DDSCAPS_LOCALVIDMEM;
     }
 
-    format = PixelFormat_DD2WineD3D(&desc->u4.ddpfPixelFormat);
+    format = wined3dformat_from_ddrawformat(&desc->u4.ddpfPixelFormat);
     if (format == WINED3DFMT_UNKNOWN)
     {
         WARN("Unsupported / unknown pixelformat.\n");

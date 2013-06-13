@@ -111,6 +111,12 @@ enum {
     DRAG_OP_EVERY   = UINT32_MAX
 };
 
+enum {
+    TOPMOST_FLOAT_INACTIVE_NONE,
+    TOPMOST_FLOAT_INACTIVE_NONFULLSCREEN,
+    TOPMOST_FLOAT_INACTIVE_ALL,
+};
+
 
 typedef struct macdrv_opaque_window* macdrv_window;
 typedef struct macdrv_opaque_event_queue* macdrv_event_queue;
@@ -129,6 +135,8 @@ struct macdrv_display {
 
 /* main */
 extern int macdrv_err_on;
+extern int topmost_float_inactive DECLSPEC_HIDDEN;
+extern int capture_displays_for_fullscreen DECLSPEC_HIDDEN;
 
 extern int macdrv_start_cocoa_app(unsigned long long tickcount) DECLSPEC_HIDDEN;
 extern void macdrv_window_rejected_focus(const struct macdrv_event *event) DECLSPEC_HIDDEN;
@@ -158,7 +166,6 @@ enum {
     APP_DEACTIVATED,
     APP_QUIT_REQUESTED,
     DISPLAYS_CHANGED,
-    IM_SET_CURSOR_POS,
     IM_SET_TEXT,
     KEY_PRESS,
     KEY_RELEASE,
@@ -201,11 +208,8 @@ typedef struct macdrv_event {
         }                                           displays_changed;
         struct {
             void           *data;
-            unsigned int    pos;
-        }                                           im_set_cursor_pos;
-        struct {
-            void           *data;
             CFStringRef     text;       /* new text or NULL if just completing existing text */
+            unsigned int    cursor_pos;
             unsigned int    complete;   /* is completing text? */
         }                                           im_set_text;
         struct {
@@ -259,6 +263,7 @@ enum {
     QUERY_DRAG_DROP,
     QUERY_DRAG_EXITED,
     QUERY_DRAG_OPERATION,
+    QUERY_IME_CHAR_RECT,
     QUERY_PASTEBOARD_DATA,
     NUM_QUERY_TYPES
 };
@@ -283,6 +288,11 @@ typedef struct macdrv_query {
             uint32_t            accepted_op;
             CFTypeRef           pasteboard;
         }                                           drag_operation;
+        struct {
+            void   *data;
+            CFRange range;
+            CGRect  rect;
+        }                                           ime_char_rect;
         struct {
             CFStringRef type;
         }                                           pasteboard_data;

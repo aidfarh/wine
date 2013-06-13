@@ -332,6 +332,8 @@ UINT msi_parse_command_line( MSIPACKAGE *package, LPCWSTR szCommandLine,
         len = ptr2 - ptr;
         if (!len) return ERROR_INVALID_COMMAND_LINE;
 
+        while (ptr[len - 1] == ' ') len--;
+
         prop = msi_alloc( (len + 1) * sizeof(WCHAR) );
         memcpy( prop, ptr, len * sizeof(WCHAR) );
         prop[len] = 0;
@@ -407,18 +409,16 @@ static BOOL ui_sequence_exists( MSIPACKAGE *package )
     static const WCHAR query [] = {
         'S','E','L','E','C','T',' ','*',' ','F','R','O','M',' ',
         '`','I','n','s','t','a','l','l','U','I','S','e','q','u','e','n','c','e','`',' ',
-        'W','H','E','R','E',' ','`','S','e','q','u','e','n','c','e','`',' ','>',' ','0',' ',
-        'O','R','D','E','R',' ','B','Y',' ','`','S','e','q','u','e','n','c','e','`',0};
+        'W','H','E','R','E',' ','`','S','e','q','u','e','n','c','e','`',' ','>',' ','0',0};
     MSIQUERY *view;
-    UINT rc;
+    DWORD count = 0;
 
-    rc = MSI_DatabaseOpenViewW(package->db, query, &view);
-    if (rc == ERROR_SUCCESS)
+    if (!(MSI_DatabaseOpenViewW( package->db, query, &view )))
     {
-        msiobj_release(&view->hdr);
-        return TRUE;
+        MSI_IterateRecords( view, &count, NULL, package );
+        msiobj_release( &view->hdr );
     }
-    return FALSE;
+    return count != 0;
 }
 
 UINT msi_set_sourcedir_props(MSIPACKAGE *package, BOOL replace)
@@ -635,14 +635,12 @@ static UINT ACTION_ProcessUISequence(MSIPACKAGE *package)
 /********************************************************
  * ACTION helper functions and functions that perform the actions
  *******************************************************/
-static BOOL ACTION_HandleCustomAction( MSIPACKAGE* package, LPCWSTR action,
-                                       UINT* rc, UINT script, BOOL force )
+static BOOL ACTION_HandleCustomAction( MSIPACKAGE *package, LPCWSTR action, UINT *rc, UINT script )
 {
     BOOL ret=FALSE;
     UINT arc;
 
-    arc = ACTION_CustomAction(package, action, script, force);
-
+    arc = ACTION_CustomAction( package, action, script );
     if (arc != ERROR_CALL_NOT_IMPLEMENTED)
     {
         *rc = arc;
@@ -7650,7 +7648,7 @@ UINT ACTION_PerformAction(MSIPACKAGE *package, const WCHAR *action, UINT script)
     handled = ACTION_HandleStandardAction(package, action, &rc);
 
     if (!handled)
-        handled = ACTION_HandleCustomAction(package, action, &rc, script, TRUE);
+        handled = ACTION_HandleCustomAction(package, action, &rc, script);
 
     if (!handled)
     {
@@ -7672,7 +7670,7 @@ UINT ACTION_PerformUIAction(MSIPACKAGE *package, const WCHAR *action, UINT scrip
     handled = ACTION_HandleStandardAction(package, action, &rc);
 
     if (!handled)
-        handled = ACTION_HandleCustomAction(package, action, &rc, script, FALSE);
+        handled = ACTION_HandleCustomAction(package, action, &rc, script);
 
     if( !handled && ACTION_DialogBox(package, action) == ERROR_SUCCESS )
         handled = TRUE;

@@ -940,15 +940,14 @@ UINT WINAPI ImeEnumRegisterWord(REGISTERWORDENUMPROCW lpfnEnumProc, LPCWSTR lpsz
     return 0;
 }
 
-BOOL WINAPI ImeSetCompositionString(HIMC hIMC, DWORD dwIndex, LPCVOID lpComp, DWORD dwCompLen,
-                                    LPCVOID lpRead, DWORD dwReadLen)
+static BOOL IME_SetCompositionString(void* hIMC, DWORD dwIndex, LPCVOID lpComp, DWORD dwCompLen, DWORD cursor_pos, BOOL cursor_valid)
 {
     LPINPUTCONTEXT lpIMC;
     DWORD flags = 0;
     WCHAR wParam  = 0;
     LPIMEPRIVATE myPrivate;
 
-    TRACE("(%p, %d, %p, %d, %p, %d):\n", hIMC, dwIndex, lpComp, dwCompLen, lpRead, dwReadLen);
+    TRACE("(%p, %d, %p, %d):\n", hIMC, dwIndex, lpComp, dwCompLen);
 
     /*
      * Explanation:
@@ -956,9 +955,6 @@ BOOL WINAPI ImeSetCompositionString(HIMC hIMC, DWORD dwIndex, LPCVOID lpComp, DW
      *  of the composition buffer.
      * TODO: set the Cocoa window's marked text string and tell text input context
      */
-
-    if (lpRead && dwReadLen)
-        FIXME("Reading string unimplemented\n");
 
     lpIMC = LockRealIMC(hIMC);
 
@@ -985,8 +981,8 @@ BOOL WINAPI ImeSetCompositionString(HIMC hIMC, DWORD dwIndex, LPCVOID lpComp, DW
             ImmDestroyIMCC(lpIMC->hCompStr);
             lpIMC->hCompStr = newCompStr;
 
-             wParam = ((const WCHAR*)lpComp)[0];
-             flags |= GCS_COMPCLAUSE | GCS_COMPATTR | GCS_DELTASTART;
+            wParam = ((const WCHAR*)lpComp)[0];
+            flags |= GCS_COMPCLAUSE | GCS_COMPATTR | GCS_DELTASTART;
         }
         else
         {
@@ -994,6 +990,16 @@ BOOL WINAPI ImeSetCompositionString(HIMC hIMC, DWORD dwIndex, LPCVOID lpComp, DW
             ImmDestroyIMCC(lpIMC->hCompStr);
             lpIMC->hCompStr = newCompStr;
         }
+
+        if (cursor_valid)
+        {
+            LPCOMPOSITIONSTRING compstr;
+            compstr = ImmLockIMCC(lpIMC->hCompStr);
+            compstr->dwCursorPos = cursor_pos;
+            ImmUnlockIMCC(lpIMC->hCompStr);
+            flags |= GCS_CURSORPOS;
+        }
+
     }
 
     GenerateIMEMessage(hIMC, WM_IME_COMPOSITION, wParam, flags);
@@ -1003,44 +1009,23 @@ BOOL WINAPI ImeSetCompositionString(HIMC hIMC, DWORD dwIndex, LPCVOID lpComp, DW
     return TRUE;
 }
 
+BOOL WINAPI ImeSetCompositionString(HIMC hIMC, DWORD dwIndex, LPCVOID lpComp, DWORD dwCompLen,
+                                    LPCVOID lpRead, DWORD dwReadLen)
+{
+    TRACE("(%p, %d, %p, %d, %p, %d):\n", hIMC, dwIndex, lpComp, dwCompLen, lpRead, dwReadLen);
+
+    if (lpRead && dwReadLen)
+        FIXME("Reading string unimplemented\n");
+
+    return IME_SetCompositionString(hIMC, dwIndex, lpComp, dwCompLen, 0, FALSE);
+}
+
 DWORD WINAPI ImeGetImeMenuItems(HIMC hIMC, DWORD dwFlags, DWORD dwType, LPIMEMENUITEMINFOW lpImeParentMenu,
                                 LPIMEMENUITEMINFOW lpImeMenu, DWORD dwSize)
 {
     FIXME("(%p, %x %x %p %p %x): stub\n", hIMC, dwFlags, dwType, lpImeParentMenu, lpImeMenu, dwSize);
     SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
     return 0;
-}
-
-static void IME_SetCursorPos(void* hIMC, DWORD pos)
-{
-    LPINPUTCONTEXT lpIMC;
-    LPCOMPOSITIONSTRING compstr;
-
-    if (!hSelectedFrom)
-        return;
-
-    lpIMC = LockRealIMC(hIMC);
-    if (!lpIMC)
-        return;
-
-    compstr = ImmLockIMCC(lpIMC->hCompStr);
-    if (!compstr)
-    {
-        UnlockRealIMC(hIMC);
-        return;
-    }
-
-    compstr->dwCursorPos = pos;
-    ImmUnlockIMCC(lpIMC->hCompStr);
-    UnlockRealIMC(hIMC);
-    GenerateIMEMessage(FROM_MACDRV, WM_IME_COMPOSITION, pos, GCS_CURSORPOS);
-    return;
-}
-
-
-static void IME_SetCompositionString(void* hIMC, LPCVOID lpComp, DWORD dwCompLen)
-{
-    ImeSetCompositionString(hIMC, SCS_SETSTR, lpComp, dwCompLen, NULL, 0);
 }
 
 static void IME_NotifyComplete(void* hIMC)
@@ -1437,23 +1422,6 @@ void IME_RegisterClasses(HINSTANCE hImeInst)
     WM_MSIME_DOCUMENTFEED = RegisterWindowMessageA("MSIMEDocumentFeed");
 }
 
-
-/***********************************************************************
- *              macdrv_im_set_cursor_pos
- */
-void macdrv_im_set_cursor_pos(const macdrv_event *event)
-{
-    HWND hwnd = macdrv_get_window_hwnd(event->window);
-    void *himc = event->im_set_cursor_pos.data;
-
-    TRACE("win %p/%p himc %p pos %u\n", hwnd, event->window, himc, event->im_set_cursor_pos.pos);
-
-    if (!himc) himc = RealIMC(FROM_MACDRV);
-
-    IME_SetCursorPos(himc, event->im_set_cursor_pos.pos);
-}
-
-
 /***********************************************************************
  *              macdrv_im_set_text
  */
@@ -1481,7 +1449,8 @@ void macdrv_im_set_text(const macdrv_event *event)
         }
 
         if (himc)
-            IME_SetCompositionString(himc, chars, length * sizeof(*chars));
+            IME_SetCompositionString(himc, SCS_SETSTR, chars, length * sizeof(*chars),
+                event->im_set_text.cursor_pos, !event->im_set_text.complete);
         else
         {
             INPUT input;
@@ -1508,4 +1477,127 @@ void macdrv_im_set_text(const macdrv_event *event)
 
     if (event->im_set_text.complete)
         IME_NotifyComplete(himc);
+}
+
+
+/**************************************************************************
+ *              query_ime_char_rect
+ */
+BOOL query_ime_char_rect(macdrv_query* query)
+{
+    HWND hwnd = macdrv_get_window_hwnd(query->window);
+    void *himc = query->ime_char_rect.data;
+    CFRange* range = &query->ime_char_rect.range;
+    CGRect* rect = &query->ime_char_rect.rect;
+    IMECHARPOSITION charpos;
+    BOOL ret = FALSE;
+
+    TRACE("win %p/%p himc %p range %ld-%ld\n", hwnd, query->window, himc, range->location,
+          range->length);
+
+    if (!himc) himc = RealIMC(FROM_MACDRV);
+
+    charpos.dwSize = sizeof(charpos);
+    charpos.dwCharPos = range->location;
+    if (ImmRequestMessageW(himc, IMR_QUERYCHARPOSITION, (ULONG_PTR)&charpos))
+    {
+        int i;
+
+        *rect = CGRectMake(charpos.pt.x, charpos.pt.y, 0, charpos.cLineHeight);
+
+        /* iterate over rest of length to extend rect */
+        for (i = 1; i <= range->length; i++)
+        {
+            charpos.dwSize = sizeof(charpos);
+            charpos.dwCharPos = range->location + i;
+            if (!ImmRequestMessageW(himc, IMR_QUERYCHARPOSITION, (ULONG_PTR)&charpos) ||
+                charpos.pt.y != rect->origin.y)
+            {
+                range->length = i;
+                break;
+            }
+
+            rect->size.width = charpos.pt.x - rect->origin.x;
+        }
+
+        ret = TRUE;
+    }
+
+    if (!ret)
+    {
+        LPINPUTCONTEXT ic = ImmLockIMC(himc);
+
+        if (ic)
+        {
+            LPIMEPRIVATE private = ImmLockIMCC(ic->hPrivate);
+            LPBYTE compdata = ImmLockIMCC(ic->hCompStr);
+            LPCOMPOSITIONSTRING compstr = (LPCOMPOSITIONSTRING)compdata;
+            LPWSTR str = (LPWSTR)(compdata + compstr->dwCompStrOffset);
+
+            if (private->hwndDefault && compstr->dwCompStrOffset &&
+                IsWindowVisible(private->hwndDefault))
+            {
+                HDC dc = GetDC(private->hwndDefault);
+                HFONT oldfont = NULL;
+                SIZE size;
+
+                if (private->textfont)
+                    oldfont = SelectObject(dc, private->textfont);
+
+                if (range->location > compstr->dwCompStrLen)
+                    range->location = compstr->dwCompStrLen;
+                if (range->location + range->length > compstr->dwCompStrLen)
+                    range->length = compstr->dwCompStrLen - range->location;
+
+                GetTextExtentPoint32W(dc, str, range->location, &size);
+                charpos.rcDocument.left = size.cx;
+                charpos.rcDocument.top = 0;
+                GetTextExtentPoint32W(dc, str, range->location + range->length, &size);
+                charpos.rcDocument.right = size.cx;
+                charpos.rcDocument.bottom = size.cy;
+
+                if (ic->cfCompForm.dwStyle == CFS_DEFAULT)
+                    OffsetRect(&charpos.rcDocument, 10, 10);
+
+                LPtoDP(dc, (POINT*)&charpos.rcDocument, 2);
+                MapWindowPoints(private->hwndDefault, 0, (POINT*)&charpos.rcDocument, 2);
+                *rect = cgrect_from_rect(charpos.rcDocument);
+                ret = TRUE;
+
+                if (oldfont)
+                    SelectObject(dc, oldfont);
+                ReleaseDC(private->hwndDefault, dc);
+            }
+
+            ImmUnlockIMCC(ic->hCompStr);
+            ImmUnlockIMCC(ic->hPrivate);
+        }
+
+        ImmUnlockIMC(himc);
+    }
+
+    if (!ret)
+    {
+        HWND focus = GetFocus();
+        if (focus && (focus == hwnd || IsChild(hwnd, focus)) &&
+            GetClientRect(focus, &charpos.rcDocument))
+        {
+            if (!GetCaretPos((POINT*)&charpos.rcDocument))
+                charpos.rcDocument.left = charpos.rcDocument.top = 0;
+
+            charpos.rcDocument.right = charpos.rcDocument.left + 1;
+            MapWindowPoints(focus, 0, (POINT*)&charpos.rcDocument, 2);
+
+            *rect = cgrect_from_rect(charpos.rcDocument);
+            ret = TRUE;
+        }
+    }
+
+    if (ret && range->length && !rect->size.width)
+        rect->size.width = 1;
+
+    TRACE(" -> %s range %ld-%ld rect %s\n", ret ? "TRUE" : "FALSE", range->location,
+          range->length, wine_dbgstr_cgrect(*rect));
+
+    return ret;
 }

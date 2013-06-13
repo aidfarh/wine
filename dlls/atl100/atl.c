@@ -51,6 +51,9 @@ HRESULT WINAPI AtlAdvise(IUnknown *pUnkCP, IUnknown *pUnk, const IID *iid, DWORD
 
     TRACE("%p %p %p %p\n", pUnkCP, pUnk, iid, pdw);
 
+    if(!pUnkCP)
+        return E_INVALIDARG;
+
     hres = IUnknown_QueryInterface(pUnkCP, &IID_IConnectionPointContainer, (void**)&container);
     if(FAILED(hres))
         return hres;
@@ -75,6 +78,9 @@ HRESULT WINAPI AtlUnadvise(IUnknown *pUnkCP, const IID *iid, DWORD dw)
     HRESULT hres;
 
     TRACE("%p %p %d\n", pUnkCP, iid, dw);
+
+    if(!pUnkCP)
+        return E_INVALIDARG;
 
     hres = IUnknown_QueryInterface(pUnkCP, &IID_IConnectionPointContainer, (void**)&container);
     if(FAILED(hres))
@@ -270,6 +276,18 @@ HRESULT WINAPI AtlIPersistStreamInit_Save(LPSTREAM pStm, BOOL fClearDirty,
                                           IUnknown *pUnk)
 {
     FIXME("(%p, %d, %p, %p, %p)\n", pStm, fClearDirty, pMap, pThis, pUnk);
+
+    return S_OK;
+}
+
+/***********************************************************************
+ *           AtlIPersistPropertyBag_Load      [atl100.@]
+ */
+HRESULT WINAPI AtlIPersistPropertyBag_Load(LPPROPERTYBAG pPropBag, LPERRORLOG pErrorLog,
+                                           ATL_PROPMAP_ENTRY *pMap, void *pThis,
+                                           IUnknown *pUnk)
+{
+    FIXME("(%p, %p, %p, %p, %p)\n", pPropBag, pErrorLog, pMap, pThis, pUnk);
 
     return S_OK;
 }
@@ -778,6 +796,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
         DisableThreadLibraryCalls(hinstDLL);
         break;
     case DLL_PROCESS_DETACH:
+        if (lpvReserved) break;
         if(catreg)
             ICatRegister_Release(catreg);
     }

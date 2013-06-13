@@ -135,6 +135,7 @@ struct macdrv_win_data
     BOOL                per_pixel_alpha : 1;    /* is window using per-pixel alpha? */
     BOOL                minimized : 1;          /* is window minimized? */
     struct window_surface *surface;
+    struct window_surface *unminimized_surface;
 };
 
 extern struct macdrv_win_data *get_win_data(HWND hwnd) DECLSPEC_HIDDEN;
@@ -202,7 +203,7 @@ extern void IME_RegisterClasses(HINSTANCE hImeInst) DECLSPEC_HIDDEN;
 extern BOOL macdrv_process_text_input(UINT vkey, UINT scan, UINT repeat, const BYTE *key_state,
                                       void *himc) DECLSPEC_HIDDEN;
 
-extern void macdrv_im_set_cursor_pos(const macdrv_event *event) DECLSPEC_HIDDEN;
 extern void macdrv_im_set_text(const macdrv_event *event) DECLSPEC_HIDDEN;
+extern BOOL query_ime_char_rect(macdrv_query* query) DECLSPEC_HIDDEN;
 
 #endif  /* __WINE_MACDRV_H */

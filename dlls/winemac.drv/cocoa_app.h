@@ -65,9 +65,8 @@ enum {
     double mouseMoveDeltaX, mouseMoveDeltaY;
     NSUInteger unmatchedMouseDowns;
 
-    NSMutableArray* orderedWineWindows;
-
     NSMutableDictionary* originalDisplayModes;
+    BOOL displaysCapturedForFullscreen;
 
     NSArray*    cursorFrames;
     int         cursorFrame;
@@ -83,11 +82,12 @@ enum {
     NSTimeInterval lastEventTapEventTime;
 
     NSImage* applicationIcon;
+
+    BOOL beenActive;
 }
 
 @property (nonatomic) CGEventSourceKeyboardType keyboardType;
 @property (readonly, copy, nonatomic) NSEvent* lastFlagsChanged;
-@property (readonly, nonatomic) NSArray* orderedWineWindows;
 @property (readonly, nonatomic) BOOL areDisplaysCaptured;
 
     + (WineApplicationController*) sharedController;
@@ -108,9 +108,9 @@ enum {
 
     - (void) flipRect:(NSRect*)rect;
 
-    - (void) wineWindow:(WineWindow*)window
-                ordered:(NSWindowOrderingMode)order
-             relativeTo:(WineWindow*)otherWindow;
+    - (WineWindow*) frontWineWindow;
+    - (void) adjustWindowLevels;
+    - (void) updateFullscreenWindows;
 
     - (BOOL) handleEvent:(NSEvent*)anEvent;
     - (void) didSendEvent:(NSEvent*)anEvent;
