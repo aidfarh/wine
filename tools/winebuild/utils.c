@@ -138,12 +138,23 @@ char *strmake( const char* fmt, ... )
     }
 }
 
-struct strarray *strarray_init(void)
+static struct strarray *strarray_init( const char *str )
 {
     struct strarray *array = xmalloc( sizeof(*array) );
     array->count = 0;
     array->max = 16;
     array->str = xmalloc( array->max * sizeof(*array->str) );
+    if (str) array->str[array->count++] = str;
+    return array;
+}
+
+static struct strarray *strarray_copy( const struct strarray *src )
+{
+    struct strarray *array = xmalloc( sizeof(*array) );
+    array->count = src->count;
+    array->max = src->max;
+    array->str = xmalloc( array->max * sizeof(*array->str) );
+    memcpy( array->str, src->str, array->count * sizeof(*array->str) );
     return array;
 }
 
@@ -170,6 +181,19 @@ void strarray_add( struct strarray *array, ... )
 void strarray_addv( struct strarray *array, char * const *argv )
 {
     while (*argv) strarray_add_one( array, *argv++ );
+}
+
+struct strarray *strarray_fromstring( const char *str, const char *delim )
+{
+    const char *tok;
+    struct strarray *array = strarray_init( NULL );
+    char *buf = strdup( str );
+
+    for (tok = strtok( buf, delim ); tok; tok = strtok( NULL, delim ))
+	strarray_add_one( array, strdup( tok ));
+
+    free( buf );
+    return array;
 }
 
 void strarray_free( struct strarray *array )
@@ -277,7 +301,7 @@ void spawn( struct strarray *args )
 }
 
 /* find a build tool in the path, trying the various names */
-char *find_tool( const char *name, const char * const *names )
+struct strarray *find_tool( const char *name, const char * const *names )
 {
     static char **dirs;
     static unsigned int count, maxlen;
@@ -338,7 +362,8 @@ char *find_tool( const char *name, const char * const *names )
             strcpy( p, *names );
             strcat( p, EXEEXT );
 
-            if (!stat( file, &st ) && S_ISREG(st.st_mode) && (st.st_mode & 0111)) return file;
+            if (!stat( file, &st ) && S_ISREG(st.st_mode) && (st.st_mode & 0111))
+                return strarray_init( file );
         }
         free( file );
         names++;
@@ -348,13 +373,15 @@ char *find_tool( const char *name, const char * const *names )
 
 struct strarray *get_as_command(void)
 {
-    static int as_is_clang = 0;
-    struct strarray *args = strarray_init();
+    struct strarray *args;
 
-    if (!as_command)
+    if (cc_command)
     {
-        as_command = find_tool( "clang", NULL );
-        if (as_command) as_is_clang = 1;
+        args = strarray_copy( cc_command );
+        strarray_add( args, "-xassembler", "-c", NULL );
+        if (force_pointer_size)
+            strarray_add_one( args, (force_pointer_size == 8) ? "-m64" : "-m32" );
+        return args;
     }
 
     if (!as_command)
@@ -366,15 +393,9 @@ struct strarray *get_as_command(void)
     if (!as_command)
         fatal_error( "cannot find suitable assembler\n" );
 
-    strarray_add_one( args, as_command );
+    args = strarray_copy( as_command );
 
-    if (as_is_clang)
-    {
-        strarray_add( args, "-xassembler", "-c", NULL );
-        if (force_pointer_size)
-            strarray_add_one( args, (force_pointer_size == 8) ? "-m64" : "-m32" );
-    }
-    else if (force_pointer_size)
+    if (force_pointer_size)
     {
         switch (target_platform)
         {
@@ -401,7 +422,7 @@ struct strarray *get_as_command(void)
 
 struct strarray *get_ld_command(void)
 {
-    struct strarray *args = strarray_init();
+    struct strarray *args;
 
     if (!ld_command)
     {
@@ -412,7 +433,7 @@ struct strarray *get_ld_command(void)
     if (!ld_command)
         fatal_error( "cannot find suitable linker\n" );
 
-    strarray_add_one( args, ld_command );
+    args = strarray_copy( ld_command );
 
     if (force_pointer_size)
     {
@@ -450,7 +471,9 @@ const char *get_nm_command(void)
 
     if (!nm_command)
         fatal_error( "cannot find suitable name lister\n" );
-    return nm_command;
+    if (nm_command->count > 1)
+        fatal_error( "multiple arguemnts in nm command not supported yet\n" );
+    return nm_command->str[0];
 }
 
 /* get a name for a temp file, automatically cleaned up on exit */

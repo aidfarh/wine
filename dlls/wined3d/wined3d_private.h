@@ -62,6 +62,7 @@
 #define WINED3D_QUIRK_BROKEN_RGBA16             0x00000040
 #define WINED3D_QUIRK_INFO_LOG_SPAM             0x00000080
 #define WINED3D_QUIRK_LIMITED_TEX_FILTERING     0x00000100
+#define WINED3D_QUIRK_BROKEN_ARB_FOG            0x00000200
 
 /* Texture format fixups */
 
@@ -1193,6 +1194,7 @@ struct fragment_pipeline
 
 struct wined3d_vertex_caps
 {
+    BOOL xyzrhw;
     DWORD max_active_lights;
     DWORD max_vertex_blend_matrices;
     DWORD max_vertex_blend_matrix_index;
@@ -1463,7 +1465,9 @@ enum wined3d_pci_device
     CARD_NVIDIA_GEFORCE_GTX660      = 0x11c0,
     CARD_NVIDIA_GEFORCE_GTX660TI    = 0x1183,
     CARD_NVIDIA_GEFORCE_GTX670      = 0x1189,
+    CARD_NVIDIA_GEFORCE_GTX670MX    = 0x11a1,
     CARD_NVIDIA_GEFORCE_GTX680      = 0x1180,
+    CARD_NVIDIA_GEFORCE_GTX770M     = 0x11e0,
 
     CARD_INTEL_830M                 = 0x3577,
     CARD_INTEL_855GM                = 0x3582,
@@ -1607,6 +1611,7 @@ struct wined3d_d3d_limits
 struct wined3d_d3d_info
 {
     struct wined3d_d3d_limits limits;
+    BOOL xyzrhw;
     BOOL vs_clipping;
     DWORD valid_rt_mask;
 };
@@ -1724,6 +1729,7 @@ struct wined3d_ffp_vs_settings
     DWORD ambient_source  : 2;
     DWORD specular_source : 2;
 
+    DWORD transformed     : 1;
     DWORD clipping        : 1;
     DWORD normal          : 1;
     DWORD normalize       : 1;
@@ -1732,7 +1738,7 @@ struct wined3d_ffp_vs_settings
     DWORD point_size      : 1;
     DWORD fog_mode        : 2;
     DWORD texcoords       : 8;  /* MAX_TEXTURES */
-    DWORD padding         : 16;
+    DWORD padding         : 15;
 
     BYTE texgen[MAX_TEXTURES];
 };
@@ -2096,8 +2102,9 @@ struct wined3d_surface
 
     DWORD flags;
 
-    UINT                      pow2Width;
-    UINT                      pow2Height;
+    UINT pitch;
+    UINT pow2Width;
+    UINT pow2Height;
 
     /* A method to retrieve the drawable size. Not in the Vtable to make it changeable */
     void (*get_drawable_size)(const struct wined3d_context *context, UINT *width, UINT *height);
@@ -2854,13 +2861,6 @@ struct ps_np2fixup_info {
     WORD              active; /* bitfield indicating if we can apply the fixup */
     WORD              num_consts;
 };
-
-/* sRGB correction constants */
-static const float srgb_cmp = 0.0031308f;
-static const float srgb_mul_low = 12.92f;
-static const float srgb_pow = 0.41666f;
-static const float srgb_mul_high = 1.055f;
-static const float srgb_sub_high = 0.055f;
 
 struct wined3d_palette
 {

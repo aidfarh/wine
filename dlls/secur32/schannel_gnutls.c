@@ -25,6 +25,7 @@
 #include <stdarg.h>
 #ifdef SONAME_LIBGNUTLS
 #include <gnutls/gnutls.h>
+#include <gnutls/crypto.h>
 #endif
 
 #include "windef.h"
@@ -65,6 +66,7 @@ MAKE_FUNCPTR(gnutls_priority_set_direct);
 MAKE_FUNCPTR(gnutls_record_get_max_size);
 MAKE_FUNCPTR(gnutls_record_recv);
 MAKE_FUNCPTR(gnutls_record_send);
+MAKE_FUNCPTR(gnutls_server_name_set);
 MAKE_FUNCPTR(gnutls_transport_get_ptr);
 MAKE_FUNCPTR(gnutls_transport_set_errno);
 MAKE_FUNCPTR(gnutls_transport_set_ptr);
@@ -179,6 +181,13 @@ void schan_imp_set_session_transport(schan_imp_session session,
 {
     gnutls_session_t s = (gnutls_session_t)session;
     pgnutls_transport_set_ptr(s, (gnutls_transport_ptr_t)t);
+}
+
+void schan_imp_set_session_target(schan_imp_session session, const char *target)
+{
+    gnutls_session_t s = (gnutls_session_t)session;
+
+    pgnutls_server_name_set( s, GNUTLS_NAME_DNS, target, strlen(target) );
 }
 
 SECURITY_STATUS schan_imp_handshake(schan_imp_session session)
@@ -432,7 +441,7 @@ again:
 
 BOOL schan_imp_allocate_certificate_credentials(schan_credentials *c)
 {
-    int ret = pgnutls_certificate_allocate_credentials((gnutls_certificate_credentials*)&c->credentials);
+    int ret = pgnutls_certificate_allocate_credentials((gnutls_certificate_credentials_t*)&c->credentials);
     if (ret != GNUTLS_E_SUCCESS)
         pgnutls_perror(ret);
     return (ret == GNUTLS_E_SUCCESS);
@@ -490,6 +499,7 @@ BOOL schan_imp_init(void)
     LOAD_FUNCPTR(gnutls_record_get_max_size);
     LOAD_FUNCPTR(gnutls_record_recv);
     LOAD_FUNCPTR(gnutls_record_send);
+    LOAD_FUNCPTR(gnutls_server_name_set)
     LOAD_FUNCPTR(gnutls_transport_get_ptr)
     LOAD_FUNCPTR(gnutls_transport_set_errno)
     LOAD_FUNCPTR(gnutls_transport_set_ptr)

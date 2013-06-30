@@ -136,8 +136,8 @@ static inline void fix_generic_modifiers_by_device(NSUInteger* modifiers)
 
 @interface WineWindow ()
 
-@property (nonatomic) BOOL disabled;
-@property (nonatomic) BOOL noActivate;
+@property (readwrite, nonatomic) BOOL disabled;
+@property (readwrite, nonatomic) BOOL noActivate;
 @property (readwrite, nonatomic) BOOL floating;
 @property (retain, nonatomic) NSWindow* latentParentWindow;
 
@@ -719,7 +719,7 @@ static inline void fix_generic_modifiers_by_device(NSUInteger* modifiers)
 
         // Get the z-order from the window server and modify it to reflect the
         // requested window ordering.
-        windowNumbers = [[[[self class] windowNumbersWithOptions:0] mutableCopy] autorelease];
+        windowNumbers = [[[[self class] windowNumbersWithOptions:NSWindowNumberListAllSpaces] mutableCopy] autorelease];
         childWindowNumber = [NSNumber numberWithInteger:[child windowNumber]];
         [windowNumbers removeObject:childWindowNumber];
         otherIndex = [windowNumbers indexOfObject:[NSNumber numberWithInteger:[other windowNumber]]];
@@ -761,7 +761,7 @@ static inline void fix_generic_modifiers_by_device(NSUInteger* modifiers)
 
     /* Returns whether or not the window was ordered in, which depends on if
        its frame intersects any screen. */
-    - (BOOL) orderBelow:(WineWindow*)prev orAbove:(WineWindow*)next
+    - (BOOL) orderBelow:(WineWindow*)prev orAbove:(WineWindow*)next activate:(BOOL)activate
     {
         WineApplicationController* controller = [WineApplicationController sharedController];
         BOOL on_screen = frame_intersects_screens([self frame], [NSScreen screens]);
@@ -771,6 +771,9 @@ static inline void fix_generic_modifiers_by_device(NSUInteger* modifiers)
             BOOL wasVisible = [self isVisible];
 
             [controller transformProcessToForeground];
+
+            if (activate)
+                [NSApp activateIgnoringOtherApps:YES];
 
             NSDisableScreenUpdates();
 
@@ -1179,40 +1182,11 @@ static inline void fix_generic_modifiers_by_device(NSUInteger* modifiers)
         }
     }
 
-    - (void) sendEvent:(NSEvent*)event
-    {
-        WineApplicationController* controller = [WineApplicationController sharedController];
-
-        /* NSWindow consumes certain key-down events as part of Cocoa's keyboard
-           interface control.  For example, Control-Tab switches focus among
-           views.  We want to bypass that feature, so directly route key-down
-           events to -keyDown:. */
-        if ([event type] == NSKeyDown)
-            [[self firstResponder] keyDown:event];
-        else
-        {
-            if ([event type] == NSLeftMouseDown &&
-                (([event modifierFlags] & (NSShiftKeyMask | NSControlKeyMask| NSAlternateKeyMask | NSCommandKeyMask)) != NSCommandKeyMask))
-            {
-                /* Since our windows generally claim they can't be made key, clicks
-                   in their title bars are swallowed by the theme frame stuff.  So,
-                   we hook directly into the event stream and assume that any click
-                   in the window will activate it, if Wine and the Win32 program
-                   accept. */
-                if (![self isKeyWindow] && !self.disabled && !self.noActivate)
-                    [controller windowGotFocus:self];
-            }
-
-            [super sendEvent:event];
-        }
-    }
-
 
     /*
      * ---------- NSResponder method overrides ----------
      */
-    - (void) keyDown:(NSEvent *)theEvent { [self postKeyEvent:theEvent]; }
-    - (void) keyUp:(NSEvent *)theEvent   { [self postKeyEvent:theEvent]; }
+    - (void) keyDown:(NSEvent *)theEvent { /* Need an implementation to avoid beeps */ }
 
     - (void) flagsChanged:(NSEvent *)theEvent
     {
@@ -1643,14 +1617,15 @@ void macdrv_set_cocoa_window_title(macdrv_window w, const unsigned short* title,
  * (i.e. if its frame intersects with a screen).  Otherwise, false.
  */
 int macdrv_order_cocoa_window(macdrv_window w, macdrv_window prev,
-        macdrv_window next)
+        macdrv_window next, int activate)
 {
     WineWindow* window = (WineWindow*)w;
     __block BOOL on_screen;
 
     OnMainThread(^{
         on_screen = [window orderBelow:(WineWindow*)prev
-                               orAbove:(WineWindow*)next];
+                               orAbove:(WineWindow*)next
+                              activate:activate];
     });
 
     return on_screen;

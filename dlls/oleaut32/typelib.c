@@ -66,6 +66,7 @@
 #include "winnls.h"
 #include "winreg.h"
 #include "winuser.h"
+#include "winternl.h"
 #include "lzexpand.h"
 
 #include "wine/unicode.h"
@@ -1004,6 +1005,7 @@ typedef struct tagITypeLibImpl
     TLBGuid *guid;
     LCID lcid;
     SYSKIND syskind;
+    int ptr_size;
     WORD ver_major;
     WORD ver_minor;
     WORD libflags;
@@ -1243,6 +1245,20 @@ static inline const GUID *TLB_get_guidref(const TLBGuid *guid)
 static inline const GUID *TLB_get_guid_null(const TLBGuid *guid)
 {
     return guid != NULL ? &guid->guid : &GUID_NULL;
+}
+
+static int get_ptr_size(SYSKIND syskind)
+{
+    switch(syskind){
+    case SYS_WIN64:
+        return 8;
+    case SYS_WIN32:
+    case SYS_MAC:
+    case SYS_WIN16:
+        return 4;
+    }
+    WARN("Unhandled syskind: 0x%x\n", syskind);
+    return 4;
 }
 
 /*
@@ -3128,6 +3144,7 @@ static HRESULT TLB_ReadTypeLib(LPCWSTR pszFileName, LPWSTR pszPath, UINT cchPath
     LPVOID pBase = NULL;
     DWORD dwTLBLength = 0;
     IUnknown *pFile = NULL;
+    HANDLE h;
 
     *ppTypeLib = NULL;
 
@@ -3161,6 +3178,24 @@ static HRESULT TLB_ReadTypeLib(LPCWSTR pszFileName, LPWSTR pszPath, UINT cchPath
     }
 
     if(file != pszFileName) heap_free(file);
+
+    h = CreateFileW(pszPath, GENERIC_READ, 0, NULL, OPEN_ALWAYS,
+            FILE_ATTRIBUTE_NORMAL, NULL);
+    if(h != INVALID_HANDLE_VALUE){
+        FILE_NAME_INFORMATION *info;
+        char data[MAX_PATH * sizeof(WCHAR) + sizeof(info->FileNameLength)];
+        BOOL br;
+
+        info = (FILE_NAME_INFORMATION*)data;
+        /* GetFileInformationByHandleEx returns the path of the file without
+         * WOW64 redirection */
+        br = GetFileInformationByHandleEx(h, FileNameInfo, data, sizeof(data));
+        if(br){
+            info->FileName[info->FileNameLength / sizeof(WCHAR)] = 0;
+            lstrcpynW(pszPath + 2, info->FileName, cchPath - 2);
+        }
+        CloseHandle(h);
+    }
 
     TRACE_(typelib)("File %s index %d\n", debugstr_w(pszPath), index);
 
@@ -3320,6 +3355,7 @@ static ITypeLib2* ITypeLib2_Constructor_MSFT(LPVOID pLib, DWORD dwTLBLength)
     pTypeLibImpl->guid = MSFT_ReadGuid(tlbHeader.posguid, &cx);
 
     pTypeLibImpl->syskind = tlbHeader.varflags & 0x0f; /* check the mask */
+    pTypeLibImpl->ptr_size = get_ptr_size(pTypeLibImpl->syskind);
     pTypeLibImpl->ver_major = LOWORD(tlbHeader.version);
     pTypeLibImpl->ver_minor = HIWORD(tlbHeader.version);
     pTypeLibImpl->libflags = (WORD) tlbHeader.flags & 0xffff;/* check mask */
@@ -3506,7 +3542,7 @@ static WORD SLTG_ReadString(const char *ptr, const TLBString **pStr, ITypeLibImp
 
     len = MultiByteToWideChar(CP_ACP, 0, ptr + 2, bytelen, NULL, 0);
     tmp_str = SysAllocStringLen(NULL, len);
-    if (*tmp_str) {
+    if (tmp_str) {
         MultiByteToWideChar(CP_ACP, 0, ptr + 2, bytelen, tmp_str, len);
         *pStr = TLB_append_str(&lib->string_list, tmp_str);
         SysFreeString(tmp_str);
@@ -3569,6 +3605,7 @@ static DWORD SLTG_ReadLibBlk(LPVOID pLibBlk, ITypeLibImpl *pTypeLibImpl)
     ptr += 4;
 
     pTypeLibImpl->syskind = *(WORD*)ptr;
+    pTypeLibImpl->ptr_size = get_ptr_size(pTypeLibImpl->syskind);
     ptr += 2;
 
     if(SUBLANGID(*(WORD*)ptr) == SUBLANG_NEUTRAL)
@@ -4143,7 +4180,7 @@ static void SLTG_ProcessDispatch(char *pBlk, ITypeInfoImpl *pTI,
   /* this is necessary to cope with MSFT typelibs that set cFuncs to the number
    * of dispinterface functions including the IDispatch ones, so
    * ITypeInfo::GetFuncDesc takes the real value for cFuncs from cbSizeVft */
-  pTI->cbSizeVft = pTI->cFuncs * sizeof(void *);
+  pTI->cbSizeVft = pTI->cFuncs * pTI->pTypeLib->ptr_size;
 
   heap_free(ref_lookup);
   if (TRACE_ON(typelib))
@@ -4628,7 +4665,7 @@ static HRESULT WINAPI ITypeLib2_fnGetTypeInfo(
     if(index >= This->TypeInfoCount)
         return TYPE_E_ELEMENTNOTFOUND;
 
-    *ppTInfo = (ITypeInfo*)This->typeinfos[index];
+    *ppTInfo = (ITypeInfo *)&This->typeinfos[index]->ITypeInfo2_iface;
     ITypeInfo_AddRef(*ppTInfo);
 
     return S_OK;
@@ -4676,7 +4713,7 @@ static HRESULT WINAPI ITypeLib2_fnGetTypeInfoOfGuid(
 
     for(i = 0; i < This->TypeInfoCount; ++i){
         if(IsEqualIID(TLB_get_guid_null(This->typeinfos[i]->guid), guid)){
-            *ppTInfo = (ITypeInfo*)This->typeinfos[i];
+            *ppTInfo = (ITypeInfo *)&This->typeinfos[i]->ITypeInfo2_iface;
             ITypeInfo_AddRef(*ppTInfo);
             return S_OK;
         }
@@ -4918,8 +4955,8 @@ static HRESULT WINAPI ITypeLib2_fnFindName(
 
         continue;
 ITypeLib2_fnFindName_exit:
-        ITypeInfo_AddRef((ITypeInfo*)pTInfo);
-        ppTInfo[count]=(LPTYPEINFO)pTInfo;
+        ITypeInfo2_AddRef(&pTInfo->ITypeInfo2_iface);
+        ppTInfo[count] = (ITypeInfo *)&pTInfo->ITypeInfo2_iface;
         count++;
     }
     TRACE("found %d typeinfos\n", count);
@@ -5253,7 +5290,7 @@ static HRESULT WINAPI ITypeLibComp_fnBind(
                     return hr;
 
                 *pDescKind = DESCKIND_IMPLICITAPPOBJ;
-                *ppTInfo = (ITypeInfo *)pTypeInfo;
+                *ppTInfo = (ITypeInfo *)&pTypeInfo->ITypeInfo2_iface;
                 ITypeInfo_AddRef(*ppTInfo);
                 return S_OK;
             }
@@ -5498,7 +5535,7 @@ static HRESULT WINAPI ITypeInfo_fnGetTypeAttr( ITypeInfo2 *iface,
 
     if((*ppTypeAttr)->typekind == TKIND_DISPATCH) {
         /* This should include all the inherited funcs */
-        (*ppTypeAttr)->cFuncs = (*ppTypeAttr)->cbSizeVft / sizeof(void *);
+        (*ppTypeAttr)->cFuncs = (*ppTypeAttr)->cbSizeVft / This->pTypeLib->ptr_size;
         /* This is always the size of IDispatch's vtbl */
         (*ppTypeAttr)->cbSizeVft = sizeof(IDispatchVtbl);
         (*ppTypeAttr)->wTypeFlags &= ~TYPEFLAG_FOLEAUTOMATION;
@@ -7413,18 +7450,21 @@ static HRESULT WINAPI ITypeInfo_fnGetRefTypeInfo(
                 ITypeLib_AddRef(pTLib);
                 result = S_OK;
             } else {
-                TRACE("typeinfo in imported typelib that isn't already loaded\n");
-                result = LoadRegTypeLib( TLB_get_guid_null(ref_type->pImpTLInfo->guid),
-                                         ref_type->pImpTLInfo->wVersionMajor,
-                                         ref_type->pImpTLInfo->wVersionMinor,
-                                         ref_type->pImpTLInfo->lcid,
-                                         &pTLib);
+                BSTR libnam;
 
-                if(FAILED(result)) {
-                    BSTR libnam=SysAllocString(ref_type->pImpTLInfo->name);
-                    result=LoadTypeLib(libnam, &pTLib);
-                    SysFreeString(libnam);
-                }
+                TRACE("typeinfo in imported typelib that isn't already loaded\n");
+
+                result = query_typelib_path(TLB_get_guid_null(ref_type->pImpTLInfo->guid),
+                        ref_type->pImpTLInfo->wVersionMajor,
+                        ref_type->pImpTLInfo->wVersionMinor,
+                        This->pTypeLib->syskind,
+                        ref_type->pImpTLInfo->lcid, &libnam);
+                if(FAILED(result))
+                    libnam = SysAllocString(ref_type->pImpTLInfo->name);
+
+                result = LoadTypeLib(libnam, &pTLib);
+                SysFreeString(libnam);
+
                 if(SUCCEEDED(result)) {
                     ref_type->pImpTLInfo->pImpTypeLib = impl_from_ITypeLib(pTLib);
                     ITypeLib_AddRef(pTLib);
@@ -8195,7 +8235,7 @@ HRESULT WINAPI CreateDispTypeInfo(
 
     dump_TypeInfo(pTIClass);
 
-    *pptinfo = (ITypeInfo*)pTIClass;
+    *pptinfo = (ITypeInfo *)&pTIClass->ITypeInfo2_iface;
 
     ITypeInfo_AddRef(*pptinfo);
     ITypeLib2_Release(&pTypeLibImpl->ITypeLib2_iface);
@@ -8208,21 +8248,21 @@ static HRESULT WINAPI ITypeComp_fnQueryInterface(ITypeComp * iface, REFIID riid,
 {
     ITypeInfoImpl *This = info_impl_from_ITypeComp(iface);
 
-    return ITypeInfo_QueryInterface((ITypeInfo *)This, riid, ppv);
+    return ITypeInfo2_QueryInterface(&This->ITypeInfo2_iface, riid, ppv);
 }
 
 static ULONG WINAPI ITypeComp_fnAddRef(ITypeComp * iface)
 {
     ITypeInfoImpl *This = info_impl_from_ITypeComp(iface);
 
-    return ITypeInfo_AddRef((ITypeInfo *)This);
+    return ITypeInfo2_AddRef(&This->ITypeInfo2_iface);
 }
 
 static ULONG WINAPI ITypeComp_fnRelease(ITypeComp * iface)
 {
     ITypeInfoImpl *This = info_impl_from_ITypeComp(iface);
 
-    return ITypeInfo_Release((ITypeInfo *)This);
+    return ITypeInfo2_Release(&This->ITypeInfo2_iface);
 }
 
 static HRESULT WINAPI ITypeComp_fnBind(
@@ -8355,16 +8395,17 @@ HRESULT WINAPI CreateTypeLib2(SYSKIND syskind, LPCOLESTR szFile,
 
     This->lcid = GetSystemDefaultLCID();
     This->syskind = syskind;
+    This->ptr_size = get_ptr_size(syskind);
 
     This->path = heap_alloc((lstrlenW(szFile) + 1) * sizeof(WCHAR));
     if (!This->path) {
-        ITypeLib2_Release((ITypeLib2*)This);
+        ITypeLib2_Release(&This->ITypeLib2_iface);
         return E_OUTOFMEMORY;
     }
     lstrcpyW(This->path, szFile);
 
-    hres = ITypeLib2_QueryInterface((ITypeLib2*)This, &IID_ICreateTypeLib2, (LPVOID*)ppctlib);
-    ITypeLib2_Release((ITypeLib2*)This);
+    hres = ITypeLib2_QueryInterface(&This->ITypeLib2_iface, &IID_ICreateTypeLib2, (LPVOID*)ppctlib);
+    ITypeLib2_Release(&This->ITypeLib2_iface);
     return hres;
 }
 
@@ -8373,21 +8414,21 @@ static HRESULT WINAPI ICreateTypeLib2_fnQueryInterface(ICreateTypeLib2 *iface,
 {
     ITypeLibImpl *This = impl_from_ICreateTypeLib2(iface);
 
-    return ITypeLib2_QueryInterface((ITypeLib2*)This, riid, object);
+    return ITypeLib2_QueryInterface(&This->ITypeLib2_iface, riid, object);
 }
 
 static ULONG WINAPI ICreateTypeLib2_fnAddRef(ICreateTypeLib2 *iface)
 {
     ITypeLibImpl *This = impl_from_ICreateTypeLib2(iface);
 
-    return ITypeLib2_AddRef((ITypeLib2*)This);
+    return ITypeLib2_AddRef(&This->ITypeLib2_iface);
 }
 
 static ULONG WINAPI ICreateTypeLib2_fnRelease(ICreateTypeLib2 *iface)
 {
     ITypeLibImpl *This = impl_from_ICreateTypeLib2(iface);
 
-    return ITypeLib2_Release((ITypeLib2*)This);
+    return ITypeLib2_Release(&This->ITypeLib2_iface);
 }
 
 static HRESULT WINAPI ICreateTypeLib2_fnCreateTypeInfo(ICreateTypeLib2 *iface,
@@ -9771,6 +9812,7 @@ static HRESULT WINAPI ICreateTypeLib2_fnSaveAllChanges(ICreateTypeLib2 *iface)
             FILE_ATTRIBUTE_NORMAL, 0);
     if (outfile == INVALID_HANDLE_VALUE){
         WMSFT_free_file(&file);
+        heap_free(junk);
         return TYPE_E_IOERROR;
     }
 
@@ -9778,10 +9820,12 @@ static HRESULT WINAPI ICreateTypeLib2_fnSaveAllChanges(ICreateTypeLib2 *iface)
     if (!br) {
         WMSFT_free_file(&file);
         CloseHandle(outfile);
+        heap_free(junk);
         return TYPE_E_IOERROR;
     }
 
     br = WriteFile(outfile, junk, junk_size, &written, NULL);
+    heap_free(junk);
     if (!br) {
         WMSFT_free_file(&file);
         CloseHandle(outfile);
@@ -9880,21 +9924,21 @@ static HRESULT WINAPI ICreateTypeInfo2_fnQueryInterface(ICreateTypeInfo2 *iface,
 {
     ITypeInfoImpl *This = info_impl_from_ICreateTypeInfo2(iface);
 
-    return ITypeInfo2_QueryInterface((ITypeInfo2*)This, riid, object);
+    return ITypeInfo2_QueryInterface(&This->ITypeInfo2_iface, riid, object);
 }
 
 static ULONG WINAPI ICreateTypeInfo2_fnAddRef(ICreateTypeInfo2 *iface)
 {
     ITypeInfoImpl *This = info_impl_from_ICreateTypeInfo2(iface);
 
-    return ITypeInfo2_AddRef((ITypeInfo2*)This);
+    return ITypeInfo2_AddRef(&This->ITypeInfo2_iface);
 }
 
 static ULONG WINAPI ICreateTypeInfo2_fnRelease(ICreateTypeInfo2 *iface)
 {
     ITypeInfoImpl *This = info_impl_from_ICreateTypeInfo2(iface);
 
-    return ITypeInfo2_Release((ITypeInfo2*)This);
+    return ITypeInfo2_Release(&This->ITypeInfo2_iface);
 }
 
 static HRESULT WINAPI ICreateTypeInfo2_fnSetGuid(ICreateTypeInfo2 *iface,
@@ -10575,7 +10619,7 @@ static HRESULT WINAPI ICreateTypeInfo2_fnLayOut(ICreateTypeInfo2 *iface)
                     ITypeInfo_Release(tinfo);
                     return hres;
                 }
-                This->cbSizeVft = attr->cbSizeVft * 4 / sizeof(void*);
+                This->cbSizeVft = attr->cbSizeVft;
                 ITypeInfo_ReleaseTypeAttr(inh, attr);
 
                 do{
@@ -10608,7 +10652,7 @@ static HRESULT WINAPI ICreateTypeInfo2_fnLayOut(ICreateTypeInfo2 *iface)
             return hres;
         }
     } else if (This->typekind == TKIND_DISPATCH)
-        This->cbSizeVft = 7 * sizeof(void*);
+        This->cbSizeVft = 7 * This->pTypeLib->ptr_size;
     else
         This->cbSizeVft = 0;
 
@@ -10621,7 +10665,7 @@ static HRESULT WINAPI ICreateTypeInfo2_fnLayOut(ICreateTypeInfo2 *iface)
         if ((func_desc->funcdesc.oVft & 0xFFFC) > user_vft)
             user_vft = func_desc->funcdesc.oVft & 0xFFFC;
 
-        This->cbSizeVft += sizeof(void*);
+        This->cbSizeVft += This->pTypeLib->ptr_size;
 
         if (func_desc->funcdesc.memid == MEMBERID_NIL) {
             TLBFuncDesc *iter;
@@ -10652,7 +10696,7 @@ static HRESULT WINAPI ICreateTypeInfo2_fnLayOut(ICreateTypeInfo2 *iface)
     }
 
     if (user_vft > This->cbSizeVft)
-        This->cbSizeVft = user_vft + sizeof(void*);
+        This->cbSizeVft = user_vft + This->pTypeLib->ptr_size;
 
     ITypeInfo_Release(tinfo);
     return hres;

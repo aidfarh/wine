@@ -55,10 +55,13 @@ static const struct
     GUID_NAME(IStdMarshalInfo),
     GUID_NAME(IExternalConnection),
     GUID_NAME(IRunnableObject),
+    GUID_NAME(ICallFactory),
     { &CLSID_IdentityUnmarshal, "CLSID_IdentityUnmarshal" },
     { &CLSID_UnknownUnmarshal, "CLSID_UnknownUnmarshal" },
 #undef GUID_NAME
 };
+
+static LONG obj_ref, class_ref, server_locks;
 
 static const char *debugstr_guid(const GUID *guid)
 {
@@ -117,6 +120,8 @@ static ULONG WINAPI UnknownImpl_AddRef(IUnknown *iface)
     UnknownImpl *This = impl_from_IUnknown(iface);
     ULONG ref = InterlockedIncrement(&This->ref);
 
+    InterlockedIncrement(&obj_ref);
+
     trace("server: unknown_AddRef: %p, ref %u\n", iface, ref);
     return ref;
 }
@@ -125,6 +130,8 @@ static ULONG WINAPI UnknownImpl_Release(IUnknown *iface)
 {
     UnknownImpl *This = impl_from_IUnknown(iface);
     ULONG ref = InterlockedDecrement(&This->ref);
+
+    InterlockedDecrement(&obj_ref);
 
     trace("server: unknown_Release: %p, ref %u\n", iface, ref);
     if (ref == 0) HeapFree(GetProcessHeap(), 0, This);
@@ -175,6 +182,8 @@ static ULONG WINAPI ClassFactoryImpl_AddRef(IClassFactory *iface)
     ClassFactoryImpl *This = impl_from_IClassFactory(iface);
     ULONG ref = InterlockedIncrement(&This->ref);
 
+    InterlockedIncrement(&class_ref);
+
     trace("server: factory_AddRef: %p, ref %u\n", iface, ref);
     return ref;
 }
@@ -183,6 +192,8 @@ static ULONG WINAPI ClassFactoryImpl_Release(IClassFactory *iface)
 {
     ClassFactoryImpl *This = impl_from_IClassFactory(iface);
     ULONG ref = InterlockedDecrement(&This->ref);
+
+    InterlockedDecrement(&class_ref);
 
     trace("server: factory_Release: %p, ref %u\n", iface, ref);
     return ref;
@@ -202,7 +213,8 @@ static HRESULT WINAPI ClassFactoryImpl_CreateInstance(IClassFactory *iface,
     if (!unknown) return E_OUTOFMEMORY;
 
     unknown->IUnknown_iface.lpVtbl = &UnknownImpl_Vtbl;
-    unknown->ref = 1;
+    unknown->ref = 0;
+    IUnknown_AddRef(&unknown->IUnknown_iface);
 
     hr = IUnknown_QueryInterface(&unknown->IUnknown_iface, iid, ppv);
     IUnknown_Release(&unknown->IUnknown_iface);
@@ -212,7 +224,6 @@ static HRESULT WINAPI ClassFactoryImpl_CreateInstance(IClassFactory *iface,
 
 static HRESULT WINAPI ClassFactoryImpl_LockServer(IClassFactory *iface, BOOL lock)
 {
-    static LONG server_locks;
     ULONG ref = lock ? InterlockedIncrement(&server_locks) : InterlockedDecrement(&server_locks);
 
     trace("server: factory_LockServer: %p,%d, ref %u\n", iface, lock, ref);
@@ -257,6 +268,11 @@ static void ole_server(void)
             trace("server: waiting for requests\n");
             WaitForSingleObject(done_event, INFINITE);
 
+            /* 1 remainining class ref is supposed to be cleared by CoRevokeClassObject */
+            ok(class_ref == 1, "expected 1 class refs, got %d\n", class_ref);
+            ok(!obj_ref, "expected 0 object refs, got %d\n", obj_ref);
+            ok(!server_locks, "expected 0 server locks, got %d\n", server_locks);
+
             CloseHandle(done_event);
             CloseHandle(init_done_event);
             if (0)
@@ -276,7 +292,7 @@ static void ole_server(void)
 }
 
 /******************************* OLE client *******************************/
-static BOOL register_server(const char *server)
+static BOOL register_server(const char *server, BOOL inproc_handler)
 {
     static const WCHAR clsidW[] = {'C','L','S','I','D','\\',0};
     DWORD ret;
@@ -296,6 +312,13 @@ static BOOL register_server(const char *server)
     {
         ret = RegSetValue(root, "LocalServer32", REG_SZ, server_path, strlen(server_path));
         ok(ret == ERROR_SUCCESS, "RegSetValue error %u\n", ret);
+
+        if (inproc_handler)
+        {
+            ret = RegSetValue(root, "InprocHandler32", REG_SZ, "ole32.dll", 9);
+            ok(ret == ERROR_SUCCESS, "RegSetValue error %u\n", ret);
+        }
+
         RegCloseKey(root);
     }
 
@@ -316,6 +339,8 @@ static void unregister_server(void)
                           DELETE, NULL, &root, NULL);
     if (ret == ERROR_SUCCESS)
     {
+        ret = RegDeleteKey(root, "InprocHandler32");
+        ok(ret == ERROR_SUCCESS, "RegDeleteKey error %u\n", ret);
         ret = RegDeleteKey(root, "LocalServer32");
         ok(ret == ERROR_SUCCESS, "RegDeleteKey error %u\n", ret);
         ret = RegDeleteKey(root, "");
@@ -329,7 +354,7 @@ static HANDLE start_server(const char *argv0)
     PROCESS_INFORMATION pi;
     STARTUPINFO si;
     SECURITY_ATTRIBUTES sa;
-    char **argv, cmdline[MAX_PATH * 2];
+    char cmdline[MAX_PATH * 2];
     BOOL ret;
 
     memset(&si, 0, sizeof(si));
@@ -343,7 +368,6 @@ static HANDLE start_server(const char *argv0)
     sa.lpSecurityDescriptor = NULL;
     sa.bInheritHandle = TRUE;
 
-    winetest_get_mainargs(&argv);
     sprintf(cmdline, "\"%s\" ole_server -server", argv0);
     ret = CreateProcess(argv0, cmdline, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi);
     ok(ret, "CreateProcess(%s) error %d\n", cmdline, GetLastError());
@@ -360,24 +384,18 @@ START_TEST(ole_server)
     IClassFactory *factory;
     IUnknown *unknown;
     IOleObject *oleobj;
+    IRunnableObject *runobj;
     DWORD ret;
     HANDLE mapping, done_event, init_done_event, process;
     struct winetest_info *info;
     int argc;
-    char **argv, *argv0, *ext;
+    char **argv;
 
     mapping = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, 4096, "winetest_ole_server");
     ok(mapping != 0, "CreateFileMapping failed\n");
     info = MapViewOfFile(mapping, FILE_MAP_READ|FILE_MAP_WRITE, 0, 0, 4096);
 
     argc = winetest_get_mainargs(&argv);
-    argv0 = strrchr(argv[0], '\\');
-    if (!argv0) argv0 = strrchr(argv[0], '/');
-    if (!argv0) argv0 = argv[0];
-    else argv0++;
-    argv0 = strdup(argv0);
-    ext = strrchr(argv0, '.');
-    if (ext && !lstrcmpi(ext, ".so")) *ext = 0;
 
     done_event = CreateEvent(NULL, TRUE, FALSE, "ole_server_done_event");
     ok(done_event != 0, "CreateEvent error %d\n", GetLastError());
@@ -404,7 +422,7 @@ START_TEST(ole_server)
         return;
     }
 
-    if (!register_server(argv[0]))
+    if (!register_server(argv[0], FALSE))
     {
         win_skip("not enough permissions to create a server CLSID key\n");
         return;
@@ -423,14 +441,81 @@ START_TEST(ole_server)
     hr = CoCreateInstance(&clsid, NULL, CLSCTX_INPROC_HANDLER, &IID_IUnknown, (void **)&unknown);
     ok(hr == REGDB_E_CLASSNOTREG, "expected REGDB_E_CLASSNOTREG, got %#x\n", hr);
 
-    /* server supports IID_IUnknown */
+    if (!register_server(argv[0], TRUE))
+    {
+        win_skip("not enough permissions to create a server CLSID key\n");
+        unregister_server();
+        return;
+    }
+
+    trace("call CoCreateInstance(&IID_NULL)\n");
+    hr = CoCreateInstance(&clsid, NULL, CLSCTX_LOCAL_SERVER, &IID_NULL, (void **)&unknown);
+    trace("ret CoCreateInstance(&IID_NULL)\n");
+    ok(hr == E_NOINTERFACE, "expected E_NOINTERFACE, got %#x\n", hr);
+
+    /* in-process handler supports IID_IUnknown starting from Vista */
+    trace("call CoCreateInstance(&IID_IUnknown)\n");
+    hr = CoCreateInstance(&clsid, NULL, CLSCTX_INPROC_HANDLER, &IID_IUnknown, (void **)&unknown);
+    trace("ret CoCreateInstance(&IID_IUnknown)\n");
+    ok(hr == S_OK || broken(hr == REGDB_E_CLASSNOTREG) /* XP,win2000 and earlier */, "CoCreateInstance(IID_IUnknown) error %#x\n", hr);
+    if (hr != S_OK)
+    {
+        win_skip("In-process handler doesn't support IID_IUnknown on this platform\n");
+        goto test_local_server;
+    }
+
+    trace("call CoCreateInstance(&IID_IOleObject)\n");
+    hr = CoCreateInstance(&clsid, NULL, CLSCTX_LOCAL_SERVER, &IID_IOleObject, (void **)&oleobj);
+    trace("ret CoCreateInstance(&IID_IOleObject)\n");
+    ok(hr == E_NOINTERFACE, "expected E_NOINTERFACE, got %#x\n", hr);
+
+    trace("call IUnknown_QueryInterface(&IID_IRunnableObject)\n");
+    hr = IUnknown_QueryInterface(unknown, &IID_IRunnableObject, (void **)&runobj);
+    trace("ret IUnknown_QueryInterface(&IID_IRunnableObject)\n");
+    ok(hr == S_OK, "QueryInterface(&IID_IRunnableObject) error %#x\n", hr);
+
+    ret = IRunnableObject_IsRunning(runobj);
+    ok(!ret, "expected 0, got %d\n", ret);
+
+    trace("call OleRun\n");
+    hr = OleRun(unknown);
+    trace("ret OleRun\n");
+todo_wine
+    ok(hr == S_OK, "OleRun error %#x\n", hr);
+
+    ret = IRunnableObject_IsRunning(runobj);
+todo_wine
+    ok(ret == 1, "expected 1, got %d\n", ret);
+
+    trace("call IRunnableObject_Release\n");
+    ret = IRunnableObject_Release(runobj);
+    trace("ret IRunnableObject_Release\n");
+    ok(ret == 1, "expected ref 1, got %u\n", ret);
+
+    trace("call IUnknown_QueryInterface(&IID_IOleObject)\n");
+    hr = IUnknown_QueryInterface(unknown, &IID_IOleObject, (void **)&oleobj);
+    trace("ret IUnknown_QueryInterface(&IID_IOleObject)\n");
+    ok(hr == S_OK, "QueryInterface(&IID_IOleObject) error %#x\n", hr);
+
+    trace("call IOleObject_Release\n");
+    ret = IOleObject_Release(oleobj);
+    trace("ret IOleObject_Release\n");
+    ok(ret == 1, "expected ref 1, got %u\n", ret);
+
+    trace("call IUnknown_Release\n");
+    ret = IUnknown_Release(unknown);
+    trace("ret IUnknown_Release\n");
+    ok(!ret, "expected ref 0, got %u\n", ret);
+
+test_local_server:
+    /* local server supports IID_IUnknown */
     trace("call CoCreateInstance(&IID_IUnknown)\n");
     hr = CoCreateInstance(&clsid, NULL, CLSCTX_LOCAL_SERVER, &IID_IUnknown, (void **)&unknown);
     trace("ret CoCreateInstance(&IID_IUnknown)\n");
     ok(hr == S_OK, "CoCreateInstance(IID_IUnknown) error %#x\n", hr);
 
     trace("call IUnknown_QueryInterface(&IID_IRunnableObject)\n");
-    hr = IUnknown_QueryInterface(unknown, &IID_IRunnableObject, (void **)&oleobj);
+    hr = IUnknown_QueryInterface(unknown, &IID_IRunnableObject, (void **)&runobj);
     trace("ret IUnknown_QueryInterface(&IID_IRunnableObject)\n");
     ok(hr == E_NOINTERFACE, "expected E_NOINTERFACE, got %#x\n", hr);
 
@@ -454,9 +539,9 @@ START_TEST(ole_server)
     trace("ret CoGetClassObject(&IID_IClassFactory)\n");
     ok(hr == S_OK, "CoGetClassObject error %#x\n", hr);
 
-    trace("call IClassFactory_QueryInterface(&IID_IOleObject)\n");
-    hr = IClassFactory_QueryInterface(factory, &IID_IOleObject, (void **)&oleobj);
-    trace("ret IClassFactory_QueryInterface(&IID_IOleObject)\n");
+    trace("call IClassFactory_CreateInstance(&IID_NULL)\n");
+    hr = IClassFactory_CreateInstance(factory, NULL, &IID_NULL, (void **)&oleobj);
+    trace("ret IClassFactory_CreateInstance(&IID_NULL)\n");
     ok(hr == E_NOINTERFACE, "expected E_NOINTERFACE, got %#x\n", hr);
 
     trace("call IClassFactory_CreateInstance(&IID_IOleObject)\n");

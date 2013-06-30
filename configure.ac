@@ -288,6 +288,7 @@ AC_CHECK_PROGS(RSVG, rsvg, false)
 AC_CHECK_PROGS(CONVERT, convert, false)
 AC_CHECK_PROGS(ICOTOOL, icotool, false)
 AC_CHECK_PROGS(MSGFMT, msgfmt, false)
+WINE_PATH_PKG_CONFIG
 
 if test "x$enable_maintainer_mode" != "xyes"
 then
@@ -1344,7 +1345,8 @@ then
     ac_save_CPPFLAGS="$CPPFLAGS"
     WINE_PACKAGE_FLAGS(GNUTLS,[gnutls])
     AC_CHECK_HEADER(gnutls/gnutls.h,
-        [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <gnutls/gnutls.h>]], [[static typeof(gnutls_mac_get_key_size) *func; if (func) return 0;]])],
+        [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <gnutls/gnutls.h>
+#include <gnutls/crypto.h>]], [[static typeof(gnutls_mac_get_key_size) *func; if (func) return 0;]])],
             [WINE_CHECK_SONAME(gnutls,gnutls_global_init,,[GNUTLS_CFLAGS=""],[$GNUTLS_LIBS])])],
         [GNUTLS_CFLAGS=""])
     CPPFLAGS="$ac_save_CPPFLAGS"
@@ -2575,6 +2577,7 @@ WINE_CONFIG_TEST(dlls/advpack/tests)
 WINE_CONFIG_DLL(amstream)
 WINE_CONFIG_TEST(dlls/amstream/tests)
 WINE_CONFIG_DLL(api-ms-win-core-localregistry-l1-1-0)
+WINE_CONFIG_DLL(api-ms-win-core-processthreads-l1-1-0)
 WINE_CONFIG_DLL(api-ms-win-core-winrt-error-l1-1-0)
 WINE_CONFIG_DLL(api-ms-win-core-winrt-string-l1-1-0)
 WINE_CONFIG_DLL(api-ms-win-downlevel-advapi32-l1-1-0)

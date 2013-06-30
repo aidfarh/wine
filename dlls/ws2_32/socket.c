@@ -98,7 +98,7 @@
 
 #ifdef HAVE_NETIPX_IPX_H
 # include <netipx/ipx.h>
-# define HAVE_IPX
+# define HAS_IPX
 #elif defined(HAVE_LINUX_IPX_H)
 # ifdef HAVE_ASM_TYPES_H
 #  include <asm/types.h>
@@ -107,7 +107,7 @@
 #  include <linux/types.h>
 # endif
 # include <linux/ipx.h>
-# define HAVE_IPX
+# define HAS_IPX
 #endif
 
 #ifdef HAVE_LINUX_IRDA_H
@@ -115,7 +115,7 @@
 #  include <linux/types.h>
 # endif
 # include <linux/irda.h>
-# define HAVE_IRDA
+# define HAS_IRDA
 #endif
 
 #ifdef HAVE_POLL_H
@@ -153,7 +153,7 @@
 #include "wine/exception.h"
 #include "wine/unicode.h"
 
-#ifdef HAVE_IPX
+#ifdef HAS_IPX
 # include "wsnwlink.h"
 #endif
 
@@ -178,6 +178,8 @@ WINE_DECLARE_DEBUG_CHANNEL(winediag);
 struct interface_filter {
     struct sock_filter iface_memaddr;
     struct sock_filter iface_rule;
+    struct sock_filter ip_memaddr;
+    struct sock_filter ip_rule;
     struct sock_filter return_keep;
     struct sock_filter return_dump;
 };
@@ -187,9 +189,17 @@ struct interface_filter {
 # define FILTER_JUMP_KEEP(here)  (u_char)(offsetof(struct interface_filter, return_keep) \
                                  -offsetof(struct interface_filter, here)-sizeof(struct sock_filter)) \
                                  /sizeof(struct sock_filter)
+# define FILTER_JUMP_NEXT()      (u_char)(0)
+# define SKF_NET_DESTIP          16 /* offset in the network header to the destination IP */
 static struct interface_filter generic_interface_filter = {
+    /* This filter rule allows incoming packets on the specified interface, which works for all
+     * remotely generated packets and for locally generated broadcast packets. */
     BPF_STMT(BPF_LD+BPF_W+BPF_ABS, SKF_AD_OFF+SKF_AD_IFINDEX),
-    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0xdeadbeef, FILTER_JUMP_KEEP(iface_rule), FILTER_JUMP_DUMP(iface_rule)),
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0xdeadbeef, FILTER_JUMP_KEEP(iface_rule), FILTER_JUMP_NEXT()),
+    /* This rule allows locally generated packets targeted at the specific IP address of the chosen
+     * adapter (local packets not destined for the broadcast address do not have IFINDEX set) */
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, SKF_NET_OFF+SKF_NET_DESTIP),
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0xdeadbeef, FILTER_JUMP_KEEP(ip_rule), FILTER_JUMP_DUMP(ip_rule)),
     BPF_STMT(BPF_RET+BPF_K, (u_int)-1), /* keep packet */
     BPF_STMT(BPF_RET+BPF_K, 0)          /* dump packet */
 };
@@ -438,7 +448,7 @@ static const int ws_af_map[][2] =
     MAP_OPTION( AF_UNSPEC ),
     MAP_OPTION( AF_INET ),
     MAP_OPTION( AF_INET6 ),
-#ifdef HAVE_IPX
+#ifdef HAS_IPX
     MAP_OPTION( AF_IPX ),
 #endif
 #ifdef AF_IRDA
@@ -1218,11 +1228,11 @@ static inline BOOL supported_pf(int pf)
     case WS_AF_INET:
     case WS_AF_INET6:
         return TRUE;
-#ifdef HAVE_IPX
+#ifdef HAS_IPX
     case WS_AF_IPX:
         return TRUE;
 #endif
-#ifdef HAVE_IRDA
+#ifdef HAS_IRDA
     case WS_AF_IRDA:
         return TRUE;
 #endif
@@ -1244,7 +1254,7 @@ static unsigned int ws_sockaddr_ws2u(const struct WS_sockaddr* wsaddr, int wsadd
 
     switch (wsaddr->sa_family)
     {
-#ifdef HAVE_IPX
+#ifdef HAS_IPX
     case WS_AF_IPX:
         {
             const struct WS_sockaddr_ipx* wsipx=(const struct WS_sockaddr_ipx*)wsaddr;
@@ -1302,7 +1312,7 @@ static unsigned int ws_sockaddr_ws2u(const struct WS_sockaddr* wsaddr, int wsadd
         memcpy(&uin->sin_addr,&win->sin_addr,4); /* 4 bytes = 32 address bits */
         break;
     }
-#ifdef HAVE_IRDA
+#ifdef HAS_IRDA
     case WS_AF_IRDA: {
         struct sockaddr_irda *uin = (struct sockaddr_irda *)uaddr;
         const SOCKADDR_IRDA *win = (const SOCKADDR_IRDA *)wsaddr;
@@ -1335,12 +1345,12 @@ static unsigned int ws_sockaddr_ws2u(const struct WS_sockaddr* wsaddr, int wsadd
         case sizeof(struct WS_sockaddr_in):
             uaddrlen = sizeof(struct sockaddr_in);
             break;
-#ifdef HAVE_IPX
+#ifdef HAS_IPX
         case sizeof(struct WS_sockaddr_ipx):
             uaddrlen = sizeof(struct sockaddr_ipx);
             break;
 #endif
-#ifdef HAVE_IRDA
+#ifdef HAS_IRDA
         case sizeof(SOCKADDR_IRDA):
             uaddrlen = sizeof(struct sockaddr_irda);
             break;
@@ -1364,7 +1374,7 @@ static BOOL is_sockaddr_bound(const struct sockaddr *uaddr, int uaddrlen)
 {
     switch (uaddr->sa_family)
     {
-#ifdef HAVE_IPX
+#ifdef HAS_IPX
         case AF_IPX:
             FIXME("don't know how to tell if IPX socket is bound, assuming it is!\n");
             return TRUE;
@@ -1396,7 +1406,7 @@ static int ws_sockaddr_u2ws(const struct sockaddr* uaddr, struct WS_sockaddr* ws
 
     switch(uaddr->sa_family)
     {
-#ifdef HAVE_IPX
+#ifdef HAS_IPX
     case AF_IPX:
         {
             const struct sockaddr_ipx* uipx=(const struct sockaddr_ipx*)uaddr;
@@ -1436,7 +1446,7 @@ static int ws_sockaddr_u2ws(const struct sockaddr* uaddr, struct WS_sockaddr* ws
         }
         break;
 #endif
-#ifdef HAVE_IRDA
+#ifdef HAS_IRDA
     case AF_IRDA: {
         const struct sockaddr_irda *uin = (const struct sockaddr_irda *)uaddr;
         SOCKADDR_IRDA *win = (SOCKADDR_IRDA *)wsaddr;
@@ -1772,7 +1782,7 @@ static int WS2_send( int fd, struct ws2_async *wsa )
             return -1;
         }
 
-#if defined(HAVE_IPX) && defined(SOL_IPX)
+#if defined(HAS_IPX) && defined(SOL_IPX)
         if(wsa->addr->sa_family == WS_AF_IPX)
         {
             struct sockaddr_ipx* uipx = (struct sockaddr_ipx*)hdr.msg_name;
@@ -2191,6 +2201,7 @@ static BOOL interface_bind( SOCKET s, int fd, struct sockaddr *addr )
                 goto cleanup; /* Failed to suggest egress interface */
             specific_interface_filter = generic_interface_filter;
             specific_interface_filter.iface_rule.k = adapter->Index;
+            specific_interface_filter.ip_rule.k = htonl(adapter_addr);
             filter_prog.len = sizeof(generic_interface_filter)/sizeof(struct sock_filter);
             filter_prog.filter = (struct sock_filter *) &specific_interface_filter;
             if (setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &filter_prog, sizeof(filter_prog)) != 0)
@@ -2806,7 +2817,7 @@ INT WINAPI WS_getsockopt(SOCKET s, INT level,
             return SOCKET_ERROR;
         } /* end switch(optname) */
     }/* end case WS_SOL_SOCKET */
-#ifdef HAVE_IPX
+#ifdef HAS_IPX
     case NSPROTO_IPX:
     {
         struct WS_sockaddr_ipx addr;
@@ -2872,7 +2883,7 @@ INT WINAPI WS_getsockopt(SOCKET s, INT level,
     } /* end case NSPROTO_IPX */
 #endif
 
-#ifdef HAVE_IRDA
+#ifdef HAS_IRDA
     case WS_SOL_IRLMP:
         switch(optname)
         {
@@ -4342,7 +4353,7 @@ int WINAPI WS_setsockopt(SOCKET s, int level, int optname,
         }
         break; /* case WS_SOL_SOCKET */
 
-#ifdef HAVE_IPX
+#ifdef HAS_IPX
     case NSPROTO_IPX:
         switch(optname)
         {

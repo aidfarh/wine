@@ -1426,13 +1426,16 @@ int macdrv_err_on;
     {
         WineWindow* window = (WineWindow*)[theEvent window];
         NSEventType type = [theEvent type];
+        BOOL broughtWindowForward = FALSE;
 
         if ([window isKindOfClass:[WineWindow class]] &&
+            !window.disabled && !window.noActivate &&
             type == NSLeftMouseDown &&
             (([theEvent modifierFlags] & (NSShiftKeyMask | NSControlKeyMask| NSAlternateKeyMask | NSCommandKeyMask)) != NSCommandKeyMask))
         {
             NSWindowButton windowButton;
-            BOOL broughtWindowForward = TRUE;
+
+            broughtWindowForward = TRUE;
 
             /* Any left-click on our window anyplace other than the close or
                minimize buttons will bring it forward. */
@@ -1537,6 +1540,8 @@ int macdrv_err_on;
 
                 macdrv_release_event(event);
             }
+            else if (broughtWindowForward && ![window isKeyWindow])
+                [self windowGotFocus:window];
         }
 
         // Since mouse button events deliver absolute cursor position, the
@@ -1687,6 +1692,12 @@ int macdrv_err_on;
             [self handleScrollWheel:anEvent];
             ret = mouseCaptureWindow != nil;
         }
+        else if (type == NSKeyDown || type == NSKeyUp)
+        {
+            WineWindow* window = (WineWindow*)[anEvent window];
+            if ([window isKindOfClass:[WineWindow class]])
+                [window postKeyEvent:anEvent];
+        }
 
         return ret;
     }
@@ -1714,6 +1725,7 @@ int macdrv_err_on;
     {
         NSNotificationCenter* nc = [NSNotificationCenter defaultCenter];
         NSNotificationCenter* wsnc = [[NSWorkspace sharedWorkspace] notificationCenter];
+        NSDistributedNotificationCenter* dnc = [NSDistributedNotificationCenter defaultCenter];
 
         [nc addObserverForName:NSWindowDidBecomeKeyNotification
                         object:nil
@@ -1755,6 +1767,17 @@ int macdrv_err_on;
                  selector:@selector(activeSpaceDidChange)
                      name:NSWorkspaceActiveSpaceDidChangeNotification
                    object:nil];
+
+        [nc addObserver:self
+               selector:@selector(releaseMouseCapture)
+                   name:NSMenuDidBeginTrackingNotification
+                 object:nil];
+
+        [dnc        addObserver:self
+                       selector:@selector(releaseMouseCapture)
+                           name:@"com.apple.HIToolbox.beginMenuTrackingNotification"
+                         object:nil
+             suspensionBehavior:NSNotificationSuspensionBehaviorDrop];
     }
 
     - (BOOL) inputSourceIsInputMethod
@@ -1774,6 +1797,26 @@ int macdrv_err_on;
         }
 
         return inputSourceIsInputMethod;
+    }
+
+    - (void) releaseMouseCapture
+    {
+        // This might be invoked on a background thread by the distributed
+        // notification center.  Shunt it to the main thread.
+        if (![NSThread isMainThread])
+        {
+            dispatch_async(dispatch_get_main_queue(), ^{ [self releaseMouseCapture]; });
+            return;
+        }
+
+        if (mouseCaptureWindow)
+        {
+            macdrv_event* event;
+
+            event = macdrv_create_event(RELEASE_CAPTURE, mouseCaptureWindow);
+            [mouseCaptureWindow.queue postEvent:event];
+            macdrv_release_event(event);
+        }
     }
 
 
@@ -1845,6 +1888,8 @@ int macdrv_err_on;
         [eventQueuesLock unlock];
 
         macdrv_release_event(event);
+
+        [self releaseMouseCapture];
     }
 
     - (NSApplicationTerminateReply) applicationShouldTerminate:(NSApplication *)sender

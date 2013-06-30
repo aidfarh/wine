@@ -24,11 +24,13 @@
 #include "wine/test.h"
 #include "initguid.h"
 #include "dxfile.h"
+#include "rmxftmpl.h"
 
 #define I2(x) x,0
 #define I4(x) x,0,0,0
 
 #define TOKEN_NAME         I2(1)
+#define TOKEN_STRING       I2(2)
 #define TOKEN_INTEGER      I2(3)
 #define TOKEN_INTEGER_LIST I2(6)
 #define TOKEN_OBRACE       I2(10)
@@ -327,6 +329,13 @@ static char object_syntax_string_with_separator[] =
 "\"foo;bar\";\n"
 "}\n";
 
+static char object_syntax_string_bin[] = {
+'x','o','f',' ','0','3','0','2','b','i','n',' ','0','0','6','4',
+TOKEN_NAME, /* size */ I4(8), /* name */ 'F','i','l','e','n','a','m','e', TOKEN_OBRACE,
+TOKEN_STRING, /* size */ I4(6), /* string */ 'f','o','o','b','a','r', TOKEN_SEMICOLON,
+TOKEN_CBRACE
+};
+
 static char templates_complex_object[] =
 "xof 0302txt 0064\n"
 "template Vector\n"
@@ -365,6 +374,24 @@ static char object_complex[] =
 "3;;;, 0;;;, 1;;;, 2;;;,\n"
 "3;;;, 1;;;, 2;;;, 3;;;,\n"
 "3;;;, 3;;;, 1;;;, 2;;;,\n"
+"}\n";
+
+static char template_using_index_color_lower[] =
+"xof 0302txt 0064\n"
+"template MeshVertexColors\n"
+"{\n"
+"<1630B821-7842-11cf-8F52-0040333594A3>\n"
+"DWORD nVertexColors;\n"
+"array indexColor vertexColors[nVertexColors];\n"
+"}\n";
+
+static char template_using_index_color_upper[] =
+"xof 0302txt 0064\n"
+"template MeshVertexColors\n"
+"{\n"
+"<1630B821-7842-11cf-8F52-0040333594A3>\n"
+"DWORD nVertexColors;\n"
+"array IndexColor vertexColors[nVertexColors];\n"
 "}\n";
 
 static void init_function_pointers(void)
@@ -849,6 +876,21 @@ static void test_syntax(void)
         IDirectXFileData_Release(lpdxfd);
     IDirectXFileEnumObject_Release(lpdxfeo);
 
+    /* Test string in binary mode */
+    dxflm.lpMemory = &object_syntax_string_bin;
+    dxflm.dSize = sizeof(object_syntax_string_bin);
+    hr = IDirectXFile_CreateEnumObject(lpDirectXFile, &dxflm, DXFILELOAD_FROMMEMORY, &lpdxfeo);
+    ok(hr == DXFILE_OK, "IDirectXFile_CreateEnumObject: %x\n", hr);
+    hr = IDirectXFileEnumObject_GetNextDataObject(lpdxfeo, &lpdxfd);
+    ok(hr == DXFILE_OK, "IDirectXFileEnumObject_GetNextDataObject: %x\n", hr);
+    hr = IDirectXFileData_GetData(lpdxfd, NULL, &size, (void**)&string);
+    ok(hr == DXFILE_OK, "IDirectXFileData_GetData: %x\n", hr);
+    ok(size == sizeof(char*), "Got wrong data size %d\n", size);
+    ok(!strcmp(*string, "foobar"), "Got string %s, expected foobar\n", *string);
+    if (hr == DXFILE_OK)
+        IDirectXFileData_Release(lpdxfd);
+    IDirectXFileEnumObject_Release(lpdxfeo);
+
     IDirectXFile_Release(lpDirectXFile);
 }
 
@@ -1014,6 +1056,60 @@ static void test_complex_object(void)
     IDirectXFileEnumObject_Release(enum_object);
     IDirectXFile_Release(dxfile);
 }
+
+static void test_standard_templates(void)
+{
+    HRESULT ret;
+    IDirectXFile *dxfile = NULL;
+
+    if (!pDirectXFileCreate)
+    {
+        win_skip("DirectXFileCreate is not available\n");
+        return;
+    }
+
+    ret = pDirectXFileCreate(&dxfile);
+    ok(ret == DXFILE_OK, "DirectXFileCreate failed with %#x\n", ret);
+    if (!dxfile)
+    {
+        skip("Couldn't create DirectXFile interface\n");
+        return;
+    }
+
+    ret = IDirectXFile_RegisterTemplates(dxfile, D3DRM_XTEMPLATES, D3DRM_XTEMPLATE_BYTES);
+    ok(ret == DXFILE_OK, "IDirectXFileImpl_RegisterTemplates failed with %#x\n", ret);
+
+    IDirectXFile_Release(dxfile);
+}
+
+static void test_type_index_color(void)
+{
+    HRESULT ret;
+    IDirectXFile *dxfile = NULL;
+
+    if (!pDirectXFileCreate)
+    {
+        win_skip("DirectXFileCreate is not available\n");
+        return;
+    }
+
+    ret = pDirectXFileCreate(&dxfile);
+    ok(ret == DXFILE_OK, "DirectXFileCreate failed with %#x\n", ret);
+    if (!dxfile)
+    {
+        skip("Couldn't create DirectXFile interface\n");
+        return;
+    }
+
+    /* Test that 'indexColor' can be used (same as IndexedColor in standard templates) and is case sensitive */
+    ret = IDirectXFile_RegisterTemplates(dxfile, template_using_index_color_lower, sizeof(template_using_index_color_lower) - 1);
+    ok(ret == DXFILE_OK, "IDirectXFileImpl_RegisterTemplates failed with %#x\n", ret);
+    ret = IDirectXFile_RegisterTemplates(dxfile, template_using_index_color_upper, sizeof(template_using_index_color_upper) - 1);
+    ok(ret == DXFILEERR_PARSEERROR, "IDirectXFileImpl_RegisterTemplates returned %#x instead of %#x\n", ret, DXFILEERR_PARSEERROR);
+
+    IDirectXFile_Release(dxfile);
+}
+
 /* Set it to 1 to expand the string when dumping the object. This is useful when there is
  * only one string in a sub-object (very common). Use with care, this may lead to a crash. */
 #define EXPAND_STRING 0
@@ -1199,6 +1295,8 @@ START_TEST(d3dxof)
     test_syntax();
     test_syntax_semicolon_comma();
     test_complex_object();
+    test_standard_templates();
+    test_type_index_color();
     test_dump();
 
     FreeLibrary(hd3dxof);

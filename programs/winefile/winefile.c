@@ -245,7 +245,7 @@ static inline void choose_font(HWND hwnd)
         chFont.hwndOwner = hwnd;
         chFont.hDC = NULL;
         chFont.lpLogFont = &lFont;
-        chFont.Flags = CF_SCREENFONTS | CF_FORCEFONTEXIST | CF_LIMITSIZE | CF_NOSCRIPTSEL | CF_INITTOLOGFONTSTRUCT;
+        chFont.Flags = CF_SCREENFONTS | CF_FORCEFONTEXIST | CF_LIMITSIZE | CF_NOSCRIPTSEL | CF_INITTOLOGFONTSTRUCT | CF_NOVERTFONTS;
         chFont.rgbColors = RGB(0,0,0);
         chFont.lCustData = 0;
         chFont.lpfnHook = NULL;
@@ -2283,7 +2283,7 @@ static LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT nmsg, WPARAM wparam, LPARAM
 }
 
 
-static WCHAR g_pos_names[COLUMNS][20] = {
+static WCHAR g_pos_names[COLUMNS][40] = {
 	{'\0'}	/* symbol */
 };
 

@@ -789,6 +789,26 @@ static void test_WinHttpAddHeaders(void)
 
 }
 
+static void CALLBACK cert_error(HINTERNET handle, DWORD_PTR ctx, DWORD status, LPVOID buf, DWORD len)
+{
+    DWORD flags = *(DWORD *)buf;
+
+    if (!flags)
+    {
+        trace("WINHTTP_CALLBACK_STATUS_FLAG_SECURITY_CHANNEL_ERROR\n");
+        return;
+    }
+#define X(x) if (flags & x) trace("%s\n", #x);
+    X(WINHTTP_CALLBACK_STATUS_FLAG_CERT_REV_FAILED)
+    X(WINHTTP_CALLBACK_STATUS_FLAG_INVALID_CERT)
+    X(WINHTTP_CALLBACK_STATUS_FLAG_CERT_REVOKED)
+    X(WINHTTP_CALLBACK_STATUS_FLAG_INVALID_CA)
+    X(WINHTTP_CALLBACK_STATUS_FLAG_CERT_CN_INVALID)
+    X(WINHTTP_CALLBACK_STATUS_FLAG_CERT_DATE_INVALID)
+    X(WINHTTP_CALLBACK_STATUS_FLAG_CERT_WRONG_USAGE)
+#undef X
+}
+
 static void test_secure_connection(void)
 {
     static const WCHAR google[] = {'w','w','w','.','g','o','o','g','l','e','.','c','o','m',0};
@@ -833,6 +853,8 @@ static void test_secure_connection(void)
 
     req = WinHttpOpenRequest(con, NULL, NULL, NULL, NULL, NULL, WINHTTP_FLAG_SECURE);
     ok(req != NULL, "failed to open a request %u\n", GetLastError());
+
+    WinHttpSetStatusCallback(req, cert_error, WINHTTP_CALLBACK_STATUS_SECURE_FAILURE, 0);
 
     ret = WinHttpSendRequest(req, NULL, 0, NULL, 0, 0, 0);
     ok(ret, "failed to send request %u\n", GetLastError());
@@ -1859,7 +1881,7 @@ static void test_basic_request(int port, const WCHAR *verb, const WCHAR *path)
 {
     HINTERNET ses, con, req;
     char buffer[0x100];
-    DWORD count, status, size;
+    DWORD count, status, size, supported, first, target;
     BOOL ret;
 
     ses = WinHttpOpen(test_useragent, 0, NULL, NULL, 0);
@@ -1882,6 +1904,13 @@ static void test_basic_request(int port, const WCHAR *verb, const WCHAR *path)
     ok(ret, "failed to query status code %u\n", GetLastError());
     ok(status == 200, "request failed unexpectedly %u\n", status);
 
+    supported = first = target = 0xffff;
+    ret = WinHttpQueryAuthSchemes(req, &supported, &first, &target);
+    ok(!ret, "unexpected success\n");
+    ok(supported == 0xffff, "got %x\n", supported);
+    ok(first == 0xffff, "got %x\n", first);
+    ok(target == 0xffff, "got %x\n", target);
+
     count = 0;
     memset(buffer, 0, sizeof(buffer));
     ret = WinHttpReadData(req, buffer, sizeof buffer, &count);
@@ -1900,7 +1929,7 @@ static void test_basic_authentication(int port)
     static const WCHAR userW[] = {'u','s','e','r',0};
     static const WCHAR passW[] = {'p','w','d',0};
     HINTERNET ses, con, req;
-    DWORD status, size, error;
+    DWORD status, size, error, supported, first, target;
     BOOL ret;
 
     ses = WinHttpOpen(test_useragent, 0, NULL, NULL, 0);
@@ -1911,6 +1940,13 @@ static void test_basic_authentication(int port)
 
     req = WinHttpOpenRequest(con, NULL, authW, NULL, NULL, NULL, 0);
     ok(req != NULL, "failed to open a request %u\n", GetLastError());
+
+    supported = first = target = 0xffff;
+    ret = WinHttpQueryAuthSchemes(req, &supported, &first, &target);
+    ok(!ret, "unexpected success\n");
+    ok(supported == 0xffff, "got %x\n", supported);
+    ok(first == 0xffff, "got %x\n", first);
+    ok(target == 0xffff, "got %x\n", target);
 
     ret = WinHttpSendRequest(req, NULL, 0, NULL, 0, 0, 0);
     ok(ret, "failed to send request %u\n", GetLastError());
@@ -2643,12 +2679,30 @@ if (0) /* crashes on some win2k systems */
     ok( !ret, "expected failure\n" );
     ok( error == ERROR_INVALID_PARAMETER, "got %u\n", error );
 }
-    url = NULL;
+    url = (WCHAR *)0xdeadbeef;
     SetLastError(0xdeadbeef);
     ret = WinHttpDetectAutoProxyConfigUrl( WINHTTP_AUTO_DETECT_TYPE_DNS_A, &url );
     error = GetLastError();
     if (!ret)
+    {
         ok( error == ERROR_WINHTTP_AUTODETECTION_FAILED, "got %u\n", error );
+        ok( url == (WCHAR *)0xdeadbeef, "got %p\n", url );
+    }
+    else
+    {
+        trace("%s\n", wine_dbgstr_w(url));
+        GlobalFree( url );
+    }
+
+    url = (WCHAR *)0xdeadbeef;
+    SetLastError(0xdeadbeef);
+    ret = WinHttpDetectAutoProxyConfigUrl( WINHTTP_AUTO_DETECT_TYPE_DHCP, &url );
+    error = GetLastError();
+    if (!ret)
+    {
+        ok( error == ERROR_WINHTTP_AUTODETECTION_FAILED, "got %u\n", error );
+        ok( url == (WCHAR *)0xdeadbeef, "got %p\n", url );
+    }
     else
     {
         trace("%s\n", wine_dbgstr_w(url));
