@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl Original author: Michael Patra
-dnl See ChangeLog file for detailed change history.
+dnl For detailed change history, see the git commit logs.
 
 m4_define(WINE_VERSION,regexp(m4_include(VERSION),[version \([-.0-9A-Za-z]+\)],[\1]))
 
@@ -2978,6 +2978,7 @@ WINE_CONFIG_DLL(psapi,,[implib])
 WINE_CONFIG_TEST(dlls/psapi/tests)
 WINE_CONFIG_DLL(pstorec)
 WINE_CONFIG_DLL(qcap)
+WINE_CONFIG_TEST(dlls/qcap/tests)
 WINE_CONFIG_DLL(qedit)
 WINE_CONFIG_TEST(dlls/qedit/tests)
 WINE_CONFIG_DLL(qmgr)

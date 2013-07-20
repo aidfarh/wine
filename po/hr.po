@@ -716,11 +716,11 @@ msgstr "Sele&kcija"
 
 #: comdlg32.rc:383
 msgid "&from:"
-msgstr "&od"
+msgstr "&od:"
 
 #: comdlg32.rc:384
 msgid "&to:"
-msgstr "&do"
+msgstr "&do:"
 
 #: comdlg32.rc:410 winecfg.rc:286
 msgid "Si&ze:"
@@ -1358,7 +1358,7 @@ msgstr "Netscape CA URL za opoziv"
 
 #: crypt32.rc:64
 msgid "Netscape Cert Renewal URL"
-msgstr "Netscape URL za obnavljanje cert."
+msgstr "Netscape URL za obnavljanje cert"
 
 #: crypt32.rc:65
 msgid "Netscape CA Policy URL"
@@ -4366,7 +4366,7 @@ msgstr "Primljena neispravna poruka za oportunističko zaključavanje.\n"
 
 #: winerror.mc:966
 msgid "Message 0x%1 not found in file %2.\n"
-msgstr "Poruka 0x%1 nije pronađena u datoteci %2\n"
+msgstr "Poruka 0x%1 nije pronađena u datoteci %2.\n"
 
 #: winerror.mc:971
 msgid "Invalid address.\n"
@@ -4898,7 +4898,7 @@ msgstr "Unos u dnevniku je izbrisan.\n"
 
 #: winerror.mc:1631
 msgid "Invalid device name.\n"
-msgstr "Neispravno ime uređaja\n"
+msgstr "Neispravno ime uređaja.\n"
 
 #: winerror.mc:1636
 msgid "Connection unavailable.\n"
@@ -6337,7 +6337,7 @@ msgid "No more bindings.\n"
 msgstr "Nema više vezivanja.\n"
 
 #: winerror.mc:3446
-msgid "Can't logon with interdomain trust account.\n"
+msgid "Can't logon with inter-domain trust account.\n"
 msgstr ""
 
 #: winerror.mc:3451
@@ -6697,7 +6697,7 @@ msgid ""
 "The specified installation package could not be opened. Please check the "
 "file path and try again."
 msgstr ""
-"Instalacijski paket se nije mogao otvoriti.  Provjerite putanju datoteke i "
+"Instalacijski paket se nije mogao otvoriti. Provjerite putanju datoteke i "
 "pokušajte ponovo."
 
 #: msi.rc:28
@@ -8899,7 +8899,7 @@ msgstr "&Naziv odredišne datoteke:"
 #: winspool.rc:28
 msgid "The output file already exists. Click OK to overwrite."
 msgstr ""
-"Odredišna datoteka već postoji.  Kliknite na gumb 'U redu' kako bi je "
+"Odredišna datoteka već postoji. Kliknite na gumb 'U redu' kako bi je "
 "zamjenili."
 
 #: winspool.rc:29
@@ -9142,7 +9142,7 @@ msgstr "Ponavljaj pri rukovanju s upućivačima"
 msgid "Referral hop limit exceeded"
 msgstr "Ograničenje čvora upućivača je prekoračeno"
 
-#: attrib.rc:27 cmd.rc:325
+#: attrib.rc:27 cmd.rc:322
 msgid ""
 "Not Yet Implemented\n"
 "\n"
@@ -9150,7 +9150,7 @@ msgstr ""
 "Nije još implementirano\n"
 "\n"
 
-#: attrib.rc:28 cmd.rc:328
+#: attrib.rc:28 cmd.rc:325
 msgid "%1: File Not Found\n"
 msgstr "%1: Datoteka nije pronađena\n"
 
@@ -9273,17 +9273,14 @@ msgstr ""
 msgid "ERASE <filename> deletes a file or set of files.\n"
 msgstr ""
 
-#: cmd.rc:69
+#: cmd.rc:66
 msgid ""
 "The FOR command is used to execute a command for each of a set of files.\n"
 "\n"
 "Syntax: FOR %variable IN (set) DO command\n"
-"\n"
-"The requirement to double the % sign when using FOR in a batch file does\n"
-"not exist in wine's cmd.\n"
 msgstr ""
 
-#: cmd.rc:81
+#: cmd.rc:78
 msgid ""
 "The GOTO command transfers execution to another statement within a\n"
 "batch file.\n"
@@ -9297,13 +9294,13 @@ msgid ""
 "GOTO has no effect when used interactively.\n"
 msgstr ""
 
-#: cmd.rc:84
+#: cmd.rc:81
 msgid ""
 "HELP <command> shows brief help details on a topic.\n"
 "HELP without an argument shows all CMD built-in commands.\n"
 msgstr ""
 
-#: cmd.rc:94
+#: cmd.rc:91
 msgid ""
 "IF is used to conditionally execute a command.\n"
 "\n"
@@ -9315,7 +9312,7 @@ msgid ""
 "quotes. The comparison is not case-sensitive.\n"
 msgstr ""
 
-#: cmd.rc:100
+#: cmd.rc:97
 msgid ""
 "LABEL is used to set a disk volume label.\n"
 "\n"
@@ -9324,15 +9321,15 @@ msgid ""
 "You can display the disk volume label with the VOL command.\n"
 msgstr ""
 
-#: cmd.rc:103
+#: cmd.rc:100
 msgid "MD <name> is the short version of MKDIR. It creates a subdirectory.\n"
 msgstr ""
 
-#: cmd.rc:104
+#: cmd.rc:101
 msgid "MKDIR <name> creates a subdirectory.\n"
 msgstr ""
 
-#: cmd.rc:111
+#: cmd.rc:108
 msgid ""
 "MOVE relocates a file or directory to a new point within the file system.\n"
 "\n"
@@ -9343,7 +9340,7 @@ msgid ""
 "MOVE fails if the old and new locations are on different DOS drive letters.\n"
 msgstr ""
 
-#: cmd.rc:122
+#: cmd.rc:119
 msgid ""
 "PATH displays or changes the cmd search path.\n"
 "\n"
@@ -9356,7 +9353,7 @@ msgid ""
 "PATH %PATH%;c:\\temp\n"
 msgstr ""
 
-#: cmd.rc:128
+#: cmd.rc:125
 msgid ""
 "PAUSE displays a message on the screen asking the user to press a key.\n"
 "\n"
@@ -9364,7 +9361,7 @@ msgid ""
 "of a previous command before it scrolls off the screen.\n"
 msgstr ""
 
-#: cmd.rc:149
+#: cmd.rc:146
 msgid ""
 "PROMPT sets the command-line prompt.\n"
 "\n"
@@ -9387,29 +9384,29 @@ msgid ""
 "so the command 'SET PROMPT=text' has the same effect as 'PROMPT text'.\n"
 msgstr ""
 
-#: cmd.rc:153
+#: cmd.rc:150
 msgid ""
 "A command line beginning with REM (followed by a space) performs no\n"
 "action, and can therefore be used as a comment in a batch file.\n"
 msgstr ""
 
-#: cmd.rc:156
+#: cmd.rc:153
 msgid "REN <filename> is the short version of RENAME. It renames a file.\n"
 msgstr ""
 
-#: cmd.rc:157
+#: cmd.rc:154
 msgid "RENAME <filename> renames a file.\n"
 msgstr ""
 
-#: cmd.rc:159
+#: cmd.rc:156
 msgid "RD <dir> is the short version of RMDIR. It deletes a subdirectory.\n"
 msgstr ""
 
-#: cmd.rc:160
+#: cmd.rc:157
 msgid "RMDIR <dir> deletes a subdirectory.\n"
 msgstr ""
 
-#: cmd.rc:204
+#: cmd.rc:201
 msgid ""
 "SET displays or changes the cmd environment variables.\n"
 "\n"
@@ -9429,14 +9426,14 @@ msgid ""
 "not possible to affect the operating system environment from within cmd.\n"
 msgstr ""
 
-#: cmd.rc:209
+#: cmd.rc:206
 msgid ""
 "SHIFT is used in a batch file to remove one parameter from the head of\n"
 "the list, so parameter 2 becomes parameter 1 and so on. It has no effect\n"
 "if called from the command line.\n"
 msgstr ""
 
-#: cmd.rc:186 start.rc:50
+#: cmd.rc:183 start.rc:50
 msgid ""
 "Start a program, or open a document in the program normally used for files "
 "with that suffix.\n"
@@ -9466,21 +9463,21 @@ msgid ""
 "/?           Display this help and exit.\n"
 msgstr ""
 
-#: cmd.rc:211
+#: cmd.rc:208
 msgid "TIME sets or shows the current system time.\n"
 msgstr ""
 
-#: cmd.rc:213
+#: cmd.rc:210
 msgid "TITLE <string> sets the window title for the cmd window.\n"
 msgstr ""
 
-#: cmd.rc:217
+#: cmd.rc:214
 msgid ""
 "TYPE <filename> copies <filename> to the console device (or elsewhere\n"
 "if redirected). No check is made that the file is readable text.\n"
 msgstr ""
 
-#: cmd.rc:226
+#: cmd.rc:223
 msgid ""
 "VERIFY is used to set, clear or test the verify flag. Valid forms are:\n"
 "\n"
@@ -9491,21 +9488,21 @@ msgid ""
 "The verify flag has no function in Wine.\n"
 msgstr ""
 
-#: cmd.rc:229
+#: cmd.rc:226
 msgid "VER displays the version of cmd you are running.\n"
 msgstr ""
 
-#: cmd.rc:231
+#: cmd.rc:228
 msgid "VOL shows the volume label of a disk device.\n"
 msgstr ""
 
-#: cmd.rc:235
+#: cmd.rc:232
 msgid ""
 "ENDLOCAL ends localization of environment changes in a batch file\n"
 "which were introduced by a preceding SETLOCAL.\n"
 msgstr ""
 
-#: cmd.rc:243
+#: cmd.rc:240
 msgid ""
 "SETLOCAL starts localization of environment changes in a batch file.\n"
 "\n"
@@ -9515,17 +9512,17 @@ msgid ""
 "settings are restored.\n"
 msgstr ""
 
-#: cmd.rc:246
+#: cmd.rc:243
 msgid ""
 "PUSHD <directoryname> saves the current directory onto a\n"
 "stack, and then changes the current directory to the supplied one.\n"
 msgstr ""
 
-#: cmd.rc:248
+#: cmd.rc:245
 msgid "POPD changes current directory to the last one saved with PUSHD.\n"
 msgstr ""
 
-#: cmd.rc:256
+#: cmd.rc:253
 msgid ""
 "ASSOC shows or modifies file extension associations.\n"
 "\n"
@@ -9537,7 +9534,7 @@ msgid ""
 "association, if any.\n"
 msgstr ""
 
-#: cmd.rc:267
+#: cmd.rc:264
 msgid ""
 "FTYPE shows or modifies open commands associated with file types.\n"
 "\n"
@@ -9551,24 +9548,24 @@ msgid ""
 "associated to the specified file type.\n"
 msgstr ""
 
-#: cmd.rc:269
+#: cmd.rc:266
 msgid "MORE displays output of files or piped input in pages.\n"
 msgstr ""
 
-#: cmd.rc:273
+#: cmd.rc:270
 msgid ""
 "CHOICE displays a text and waits, until the User\n"
 "presses an allowed Key from a selectable list.\n"
 "CHOICE is mainly used to build a menu selection in a batch file.\n"
 msgstr ""
 
-#: cmd.rc:277
+#: cmd.rc:274
 msgid ""
 "EXIT terminates the current command session and returns\n"
 "to the operating system or shell from which you invoked cmd.\n"
 msgstr ""
 
-#: cmd.rc:315
+#: cmd.rc:312
 msgid ""
 "CMD built-in commands are:\n"
 "ASSOC\t\tShow or modify file extension associations\n"
@@ -9610,181 +9607,181 @@ msgid ""
 "Enter HELP <command> for further information on any of the above commands.\n"
 msgstr ""
 
-#: cmd.rc:317
+#: cmd.rc:314
 msgid "Are you sure?"
 msgstr ""
 
-#: cmd.rc:318 xcopy.rc:40
+#: cmd.rc:315 xcopy.rc:40
 msgctxt "Yes key"
 msgid "Y"
 msgstr "D"
 
-#: cmd.rc:319 xcopy.rc:41
+#: cmd.rc:316 xcopy.rc:41
 msgctxt "No key"
 msgid "N"
 msgstr "N"
 
-#: cmd.rc:320
+#: cmd.rc:317
 msgid "File association missing for extension %1\n"
 msgstr ""
 
-#: cmd.rc:321
+#: cmd.rc:318
 msgid "No open command associated with file type '%1'\n"
 msgstr ""
 
-#: cmd.rc:322
+#: cmd.rc:319
 msgid "Overwrite %1?"
 msgstr "Pisati preko %1?"
 
-#: cmd.rc:323
+#: cmd.rc:320
 msgid "More..."
 msgstr "Više..."
 
-#: cmd.rc:324
+#: cmd.rc:321
 msgid "Line in Batch processing possibly truncated. Using:\n"
 msgstr ""
 
-#: cmd.rc:326
+#: cmd.rc:323
 msgid "Argument missing\n"
 msgstr ""
 
-#: cmd.rc:327
+#: cmd.rc:324
 msgid "Syntax error\n"
 msgstr ""
 
-#: cmd.rc:329
+#: cmd.rc:326
 msgid "No help available for %1\n"
 msgstr "Nedostupa pomoć za %1\n"
 
-#: cmd.rc:330
+#: cmd.rc:327
 msgid "Target to GOTO not found\n"
 msgstr ""
 
-#: cmd.rc:331
+#: cmd.rc:328
 msgid "Current Date is %1\n"
 msgstr "Trenutni datum je %1\n"
 
-#: cmd.rc:332
+#: cmd.rc:329
 msgid "Current Time is %1\n"
 msgstr ""
 
-#: cmd.rc:333
+#: cmd.rc:330
 msgid "Enter new date: "
 msgstr ""
 
-#: cmd.rc:334
+#: cmd.rc:331
 msgid "Enter new time: "
 msgstr ""
 
-#: cmd.rc:335
+#: cmd.rc:332
 msgid "Environment variable %1 not defined\n"
 msgstr ""
 
-#: cmd.rc:336 xcopy.rc:38
+#: cmd.rc:333 xcopy.rc:38
 msgid "Failed to open '%1'\n"
 msgstr ""
 
-#: cmd.rc:337
+#: cmd.rc:334
 msgid "Cannot call batch label outside of a batch script\n"
 msgstr ""
 
-#: cmd.rc:338 xcopy.rc:42
+#: cmd.rc:335 xcopy.rc:42
 msgctxt "All key"
 msgid "A"
 msgstr "S"
 
-#: cmd.rc:339
+#: cmd.rc:336
 msgid "Delete %1?"
 msgstr "Izbriši %1?"
 
-#: cmd.rc:340
+#: cmd.rc:337
 msgid "Echo is %1\n"
 msgstr ""
 
-#: cmd.rc:341
+#: cmd.rc:338
 msgid "Verify is %1\n"
 msgstr ""
 
-#: cmd.rc:342
+#: cmd.rc:339
 msgid "Verify must be ON or OFF\n"
 msgstr ""
 
-#: cmd.rc:343
+#: cmd.rc:340
 msgid "Parameter error\n"
 msgstr ""
 
-#: cmd.rc:344
+#: cmd.rc:341
 msgid ""
 "Volume Serial Number is %1!04x!-%2!04x!\n"
 "\n"
 msgstr ""
 
-#: cmd.rc:345
+#: cmd.rc:342
 msgid "Volume label (11 characters, <Enter> for none)?"
 msgstr ""
 
-#: cmd.rc:346
+#: cmd.rc:343
 msgid "PATH not found\n"
 msgstr ""
 
-#: cmd.rc:347
+#: cmd.rc:344
 msgid "Press any key to continue... "
 msgstr ""
 
-#: cmd.rc:348
+#: cmd.rc:345
 msgid "Wine Command Prompt"
 msgstr ""
 
-#: cmd.rc:349
+#: cmd.rc:346
 msgid "Wine CMD Version %1!S!\n"
 msgstr ""
 
-#: cmd.rc:350
+#: cmd.rc:347
 msgid "More? "
 msgstr ""
 
-#: cmd.rc:351
+#: cmd.rc:348
 msgid "The input line is too long.\n"
 msgstr ""
 
-#: cmd.rc:352
+#: cmd.rc:349
 msgid "Volume in drive %1!c! is %2\n"
 msgstr ""
 
-#: cmd.rc:353
+#: cmd.rc:350
 msgid "Volume in drive %1!c! has no label.\n"
 msgstr ""
 
-#: cmd.rc:354
+#: cmd.rc:351
 msgid " (Yes|No)"
 msgstr " (Da|Ne)"
 
-#: cmd.rc:355
+#: cmd.rc:352
 msgid " (Yes|No|All)"
 msgstr " (Da|Ne|Sve)"
 
-#: cmd.rc:356
+#: cmd.rc:353
 msgid ""
 "Can't recognize '%1' as an internal or external command, or batch script.\n"
 msgstr ""
 
-#: cmd.rc:357
+#: cmd.rc:354
 msgid "Division by zero error.\n"
 msgstr ""
 
-#: cmd.rc:358
+#: cmd.rc:355
 msgid "Expected an operand.\n"
 msgstr ""
 
-#: cmd.rc:359
+#: cmd.rc:356
 msgid "Expected an operator.\n"
 msgstr ""
 
-#: cmd.rc:360
+#: cmd.rc:357
 msgid "Mismatch in parentheses.\n"
 msgstr ""
 
-#: cmd.rc:361
+#: cmd.rc:358
 msgid ""
 "Badly formed number - must be one of decimal (12),\n"
 " hexadecimal (0x34) or octal (056).\n"
@@ -10777,7 +10774,7 @@ msgstr "Atributi grupe programa"
 
 #: progman.rc:153
 msgid "&Group file:"
-msgstr "Datoteka g&rupe"
+msgstr "Datoteka g&rupe:"
 
 #: progman.rc:165
 msgid "Program Attributes"
@@ -10789,7 +10786,7 @@ msgstr "&Naredbena linija:"
 
 #: progman.rc:171
 msgid "&Working directory:"
-msgstr "Trenutni direktori&j"
+msgstr "Trenutni direktori&j:"
 
 #: progman.rc:173
 msgid "&Key combination:"
@@ -12218,8 +12215,8 @@ msgid ""
 "linked to the Libraries and Graphics tabs to allow you to change system-wide "
 "or per-application settings in those tabs as well."
 msgstr ""
-"Wine može imitirati različite verzije Windowsa za pojedini program.  Ovaj "
-"tab je povezan sa tabovima Biblioteke i Grafika kako bi dozvolio sistemske "
+"Wine može imitirati različite verzije Windowsa za pojedini program. Ovaj tab "
+"je povezan sa tabovima Biblioteke i Grafika kako bi dozvolio sistemske "
 "promjene ili za podešavanje aplikacija u tim istim tabovima."
 
 #: winecfg.rc:150
@@ -12381,19 +12378,19 @@ msgstr "Podrazumijevano"
 
 #: winecfg.rc:259
 msgid "Output device:"
-msgstr "Izlazni uređaj"
+msgstr "Izlazni uređaj:"
 
 #: winecfg.rc:260
 msgid "Voice output device:"
-msgstr "Izlazni uređaj za glas"
+msgstr "Izlazni uređaj za glas:"
 
 #: winecfg.rc:261
 msgid "Input device:"
-msgstr "Ulazni uređaj"
+msgstr "Ulazni uređaj:"
 
 #: winecfg.rc:262
 msgid "Voice input device:"
-msgstr "Ulazni uređdaj za glas"
+msgstr "Ulazni uređdaj za glas:"
 
 #: winecfg.rc:267
 msgid "&Test Sound"
@@ -12413,7 +12410,7 @@ msgstr "&Instaliraj temu..."
 
 #: winecfg.rc:282
 msgid "It&em:"
-msgstr "Stavka"
+msgstr "Stavka:"
 
 #: winecfg.rc:284
 msgid "C&olor:"
@@ -12787,7 +12784,7 @@ msgstr "Povijest naredbi"
 
 #: wineconsole.rc:73
 msgid "&Number of recalled commands:"
-msgstr "Broj povučen&ih naredbi"
+msgstr "Broj povučen&ih naredbi:"
 
 #: wineconsole.rc:76
 msgid "&Remove doubles"
@@ -12811,7 +12808,7 @@ msgstr "Tampon zona"
 
 #: wineconsole.rc:101
 msgid "&Width:"
-msgstr "&Širina"
+msgstr "&Širina:"
 
 #: wineconsole.rc:104
 msgid "&Height:"
@@ -12823,7 +12820,7 @@ msgstr "Veličina rozora"
 
 #: wineconsole.rc:109
 msgid "W&idth:"
-msgstr "Š&irina"
+msgstr "Š&irina:"
 
 #: wineconsole.rc:112
 msgid "H&eight:"
@@ -12969,6 +12966,7 @@ msgstr ""
 "se zbog neugodnosti."
 
 #: winedbg.rc:55
+#, fuzzy
 msgid ""
 "This can be caused by a problem in the program or a deficiency in Wine. You "
 "may want to check the <a href=\"http://appdb.winehq.org\">Application "
@@ -13022,7 +13020,7 @@ msgstr "&Otvori\tUnesi"
 
 #: winefile.rc:30
 msgid "Re&name..."
-msgstr "&Preimenuj"
+msgstr "&Preimenuj..."
 
 #: winefile.rc:31
 msgid "Propert&ies\tAlt+Enter"
@@ -13183,7 +13181,7 @@ msgstr "Primjenjujem postavke fonta"
 
 #: winefile.rc:88
 msgid "Error while selecting new font."
-msgstr "Pogreška prilikom odabira novog fonta"
+msgstr "Pogreška prilikom odabira novog fonta."
 
 #: winefile.rc:93
 msgid "Wine File Manager"
@@ -13437,11 +13435,11 @@ msgstr ""
 
 #: wmic.rc:26
 msgid "Error: Alias not found\n"
-msgstr "Greška: zamjensko ime nije pronađen.\n"
+msgstr "Greška: Zamjensko ime nije pronađen\n"
 
 #: wmic.rc:27
 msgid "Error: Invalid query\n"
-msgstr "Error: Neispravan upit.\n"
+msgstr "Error: Neispravan upit\n"
 
 #: wordpad.rc:28
 msgid "&New...\tCtrl+N"
@@ -13842,7 +13840,7 @@ msgstr "Zamjeniti %1? (Da|Ne|Sve)\n"
 
 #: xcopy.rc:37
 msgid "Copying of '%1' to '%2' failed with r/c %3!d!\n"
-msgstr "Kopiranje '%1' u '%'' nije uspjelo sa r/c %3!d!\n"
+msgstr "Kopiranje '%1' u '%2' nije uspjelo sa r/c %3!d!\n"
 
 #: xcopy.rc:39
 msgid "Failed during reading of '%1'\n"
@@ -13851,12 +13849,12 @@ msgstr "Čitanje '%1' datoteke nije uspjelo\n"
 #: xcopy.rc:43
 msgctxt "File key"
 msgid "F"
-msgstr "D"
+msgstr ""
 
 #: xcopy.rc:44
 msgctxt "Directory key"
 msgid "D"
-msgstr "F"
+msgstr ""
 
 #: xcopy.rc:77
 msgid ""
@@ -13924,5 +13922,5 @@ msgstr ""
 "[/D | /D:m-d-y] Kopiraj nove ili izmjenjene datoteke nakon određenog "
 "datuma.\n"
 "\t\tAko datum nije unesen, kopiraj samo ako je odredište starije\n"
-"\t\tod izvora\n"
+"\t\tod izvora.\n"
 "\n"

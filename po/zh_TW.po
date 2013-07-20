@@ -26,7 +26,7 @@ msgstr "要從軟碟、光碟或硬碟安裝新程式，請按「安裝」。"
 
 #: appwiz.rc:59
 msgid "&Install..."
-msgstr "安裝(&I)…"
+msgstr "安裝(&I)..."
 
 #: appwiz.rc:62
 msgid ""
@@ -43,7 +43,7 @@ msgstr "技術支援資訊(&S)"
 
 #: appwiz.rc:65 regedit.rc:42 regedit.rc:87
 msgid "&Modify..."
-msgstr "修改(&M)…"
+msgstr "修改(&M)..."
 
 #: appwiz.rc:66 appwiz.rc:42 cryptui.rc:343 msacm32.rc:37 winecfg.rc:191
 #: winecfg.rc:228 wordpad.rc:245
@@ -226,11 +226,11 @@ msgstr "修改/移除(&M)"
 
 #: appwiz.rc:48
 msgid "Downloading..."
-msgstr "正在下載…"
+msgstr "正在下載..."
 
 #: appwiz.rc:49
 msgid "Installing..."
-msgstr "正在安裝…"
+msgstr "正在安裝..."
 
 #: appwiz.rc:50
 msgid ""
@@ -248,7 +248,7 @@ msgstr "選擇來源(&C)："
 
 #: avifil32.rc:45 wordpad.rc:73
 msgid "&Options..."
-msgstr "選項(&O)…"
+msgstr "選項(&O)..."
 
 #: avifil32.rc:46
 msgid "&Interleave every"
@@ -292,7 +292,7 @@ msgstr "未壓縮"
 
 #: browseui.rc:25
 msgid "Canceling..."
-msgstr "正在取消…"
+msgstr "正在取消..."
 
 #: comctl32.rc:49 winefile.rc:157
 msgid "Properties for %s"
@@ -418,7 +418,7 @@ msgstr "唯讀(&R)"
 
 #: comdlg32.rc:173
 msgid "Save As..."
-msgstr "另存新檔…"
+msgstr "另存新檔..."
 
 #: comdlg32.rc:186 comdlg32.rc:141
 msgid "Save As"
@@ -762,7 +762,7 @@ msgstr "下(&B)："
 
 #: comdlg32.rc:448
 msgid "P&rinter..."
-msgstr "印表機(&R)…"
+msgstr "印表機(&R)..."
 
 #: comdlg32.rc:456
 msgid "Look &in:"
@@ -2055,7 +2055,7 @@ msgstr "一般"
 
 #: cryptui.rc:188
 msgid "&Install Certificate..."
-msgstr "安裝憑證(&I)…"
+msgstr "安裝憑證(&I)..."
 
 #: cryptui.rc:189
 msgid "Issuer &Statement"
@@ -2067,11 +2067,11 @@ msgstr "顯示(&S)："
 
 #: cryptui.rc:202
 msgid "&Edit Properties..."
-msgstr "編輯屬性(&E)…"
+msgstr "編輯屬性(&E)..."
 
 #: cryptui.rc:203
 msgid "&Copy to File..."
-msgstr "複製到檔案(&C)…"
+msgstr "複製到檔案(&C)..."
 
 #: cryptui.rc:207
 msgid "Certification Path"
@@ -2123,7 +2123,7 @@ msgstr "只有啟用這個憑證的下列目的(&O)："
 
 #: cryptui.rc:250
 msgid "Add &Purpose..."
-msgstr "加入目的(&P)…"
+msgstr "加入目的(&P)..."
 
 #: cryptui.rc:254
 msgid "Add Purpose"
@@ -2179,7 +2179,7 @@ msgstr "檔案名稱(&F)："
 
 #: cryptui.rc:293 cryptui.rc:315 cryptui.rc:429 winecfg.rc:295
 msgid "B&rowse..."
-msgstr "瀏覽(&R)…"
+msgstr "瀏覽(&R)..."
 
 #: cryptui.rc:294
 msgid ""
@@ -2236,15 +2236,15 @@ msgstr "預定目的(&N)："
 
 #: cryptui.rc:341
 msgid "&Import..."
-msgstr "匯入(&I)…"
+msgstr "匯入(&I)..."
 
 #: cryptui.rc:342 regedit.rc:109
 msgid "&Export..."
-msgstr "匯出(&E)…"
+msgstr "匯出(&E)..."
 
 #: cryptui.rc:344
 msgid "&Advanced..."
-msgstr "進階(&A)…"
+msgstr "進階(&A)..."
 
 #: cryptui.rc:345
 msgid "Certificate intended purposes"
@@ -3039,7 +3039,7 @@ msgstr "正在傳輸"
 
 #: gphoto2.rc:43
 msgid "Transferring... Please Wait"
-msgstr "正在傳輸… 請稍候"
+msgstr "正在傳輸... 請稍候"
 
 #: gphoto2.rc:48
 msgid "Connecting to camera"
@@ -3047,7 +3047,7 @@ msgstr "連接照相機"
 
 #: gphoto2.rc:52
 msgid "Connecting to camera... Please Wait"
-msgstr "正在連接照相機… 請稍候"
+msgstr "正在連接照相機... 請稍候"
 
 #: hhctrl.rc:56
 msgid "S&ync"
@@ -3076,7 +3076,7 @@ msgstr "重新整理(&R)"
 
 #: hhctrl.rc:62 winhlp32.rc:31
 msgid "&Print..."
-msgstr "列印(&P)…"
+msgstr "列印(&P)..."
 
 #: hhctrl.rc:28 taskmgr.rc:89
 msgid "&Contents"
@@ -3159,19 +3159,19 @@ msgstr "視窗(&W)"
 
 #: ieframe.rc:31 view.rc:30 winhlp32.rc:29
 msgid "&Open..."
-msgstr "開啟(&O)…"
+msgstr "開啟(&O)..."
 
 #: ieframe.rc:33 notepad.rc:30 wordpad.rc:31
 msgid "Save &as..."
-msgstr "另存為(&A)…"
+msgstr "另存為(&A)..."
 
 #: ieframe.rc:35
 msgid "Print &format..."
-msgstr "列印格式(&F)…"
+msgstr "列印格式(&F)..."
 
 #: ieframe.rc:36
 msgid "Pr&int..."
-msgstr "列印(&I)…"
+msgstr "列印(&I)..."
 
 #: ieframe.rc:37 wordpad.rc:34
 msgid "Print previe&w"
@@ -3195,7 +3195,7 @@ msgstr "我的最愛(&F)"
 
 #: ieframe.rc:52 regedit.rc:73
 msgid "&Add to Favorites..."
-msgstr "新增到我的最愛(&A)…"
+msgstr "新增到我的最愛(&A)..."
 
 #: ieframe.rc:57
 msgid "&About Internet Explorer"
@@ -3220,7 +3220,7 @@ msgstr "首頁"
 
 #: ieframe.rc:68 winhlp32.rc:66
 msgid "Print..."
-msgstr "列印…"
+msgstr "列印..."
 
 #: ieframe.rc:73
 msgid "Address"
@@ -3272,11 +3272,11 @@ msgstr "您可以刪除網頁快取、訊餅和其他資料。"
 
 #: inetcpl.rc:56
 msgid "Delete &files..."
-msgstr "刪除檔案(&F)…"
+msgstr "刪除檔案(&F)..."
 
 #: inetcpl.rc:57
 msgid "&Settings..."
-msgstr "設定(&S)…"
+msgstr "設定(&S)..."
 
 #: inetcpl.rc:65
 msgid "Delete browsing history"
@@ -3339,11 +3339,11 @@ msgstr "憑證是做為您的個人識別，以及識別憑證授權機構和發
 
 #: inetcpl.rc:111
 msgid "Certificates..."
-msgstr "憑證…"
+msgstr "憑證..."
 
 #: inetcpl.rc:112
 msgid "Publishers..."
-msgstr "發行者…"
+msgstr "發行者..."
 
 #: inetcpl.rc:28
 msgid "Internet Settings"
@@ -6300,7 +6300,7 @@ msgid "No more bindings.\n"
 msgstr "已無更多繫結。\n"
 
 #: winerror.mc:3446
-msgid "Can't logon with interdomain trust account.\n"
+msgid "Can't logon with inter-domain trust account.\n"
 msgstr "無法以網域間信賴帳號登錄。\n"
 
 #: winerror.mc:3451
@@ -6617,7 +6617,7 @@ msgstr "聲音選擇"
 
 #: msacm32.rc:36 winedbg.rc:73
 msgid "&Save As..."
-msgstr "另存為(&S)…"
+msgstr "另存為(&S)..."
 
 #: msacm32.rc:39
 msgid "&Format:"
@@ -6649,7 +6649,7 @@ msgstr "HTML 檔案"
 
 #: mshtml.rc:26
 msgid "Downloading from %s..."
-msgstr "從 %s 下載中…"
+msgstr "從 %s 下載中..."
 
 #: mshtml.rc:25
 msgid "Done"
@@ -6773,7 +6773,7 @@ msgstr "壓縮器(&C)："
 
 #: msvfw32.rc:39
 msgid "Con&figure..."
-msgstr "組態(&F)…"
+msgstr "組態(&F)..."
 
 #: msvfw32.rc:40
 msgid "&About"
@@ -7105,7 +7105,7 @@ msgstr "建立於檔案"
 
 #: oledlg.rc:65
 msgid "&Add Control..."
-msgstr "新增控制項(&A)…"
+msgstr "新增控制項(&A)..."
 
 #: oledlg.rc:66
 msgid "Display As Icon"
@@ -7113,7 +7113,7 @@ msgstr "顯示為圖示"
 
 #: oledlg.rc:68 setupapi.rc:58
 msgid "Browse..."
-msgstr "瀏覽…"
+msgstr "瀏覽..."
 
 #: oledlg.rc:69
 msgid "File:"
@@ -7146,7 +7146,7 @@ msgstr "顯示為圖示(&D)"
 
 #: oledlg.rc:92
 msgid "Change &Icon..."
-msgstr "變更圖示(&I)…"
+msgstr "變更圖示(&I)..."
 
 #: oledlg.rc:25
 msgid "Insert a new %s object into your document"
@@ -7237,7 +7237,7 @@ msgstr "正在掃描"
 
 #: sane.rc:44
 msgid "SCANNING... Please Wait"
-msgstr "正在掃描… 請稍候"
+msgstr "正在掃描... 請稍候"
 
 #: sane.rc:31
 msgctxt "unit: pixels"
@@ -7290,7 +7290,7 @@ msgstr "停止位元"
 
 #: setupapi.rc:36
 msgid "Copying Files..."
-msgstr "複製檔案…"
+msgstr "複製檔案..."
 
 #: setupapi.rc:42
 msgid "Destination:"
@@ -7334,7 +7334,7 @@ msgstr "向前(&O)"
 
 #: shdoclc.rc:41
 msgid "&Save Background As..."
-msgstr "將背景存為(&S)…"
+msgstr "將背景存為(&S)..."
 
 #: shdoclc.rc:42
 msgid "Set As Back&ground"
@@ -7358,7 +7358,7 @@ msgstr "建立捷徑(&T)"
 
 #: shdoclc.rc:50 shdoclc.rc:81 shdoclc.rc:134 shdoclc.rc:161 shdoclc.rc:185
 msgid "Add to &Favorites..."
-msgstr "新增至我的最愛(&F)…"
+msgstr "新增至我的最愛(&F)..."
 
 #: shdoclc.rc:51
 msgid "&View Source"
@@ -7382,7 +7382,7 @@ msgstr "在新視窗開啟連結(&N)"
 
 #: shdoclc.rc:65 shdoclc.rc:126 shdoclc.rc:148 shdoclc.rc:172
 msgid "Save Target &As..."
-msgstr "另存目標(&A)…"
+msgstr "另存目標(&A)..."
 
 #: shdoclc.rc:66 shdoclc.rc:127 shdoclc.rc:149 shdoclc.rc:173
 msgid "&Print Target"
@@ -7394,15 +7394,15 @@ msgstr "顯示圖片(&H)"
 
 #: shdoclc.rc:69 shdoclc.rc:176
 msgid "&Save Picture As..."
-msgstr "另存圖片(&S)…"
+msgstr "另存圖片(&S)..."
 
 #: shdoclc.rc:70
 msgid "&E-mail Picture..."
-msgstr "電子郵件圖片(&E)…"
+msgstr "電子郵件圖片(&E)..."
 
 #: shdoclc.rc:71
 msgid "Pr&int Picture..."
-msgstr "列印圖片(&I)…"
+msgstr "列印圖片(&I)..."
 
 #: shdoclc.rc:72
 msgid "&Go to My Pictures"
@@ -7414,7 +7414,7 @@ msgstr "設為背景(&G)"
 
 #: shdoclc.rc:74 shdoclc.rc:154 shdoclc.rc:178
 msgid "Set as &Desktop Item..."
-msgstr "設為桌面項目(&D)…"
+msgstr "設為桌面項目(&D)..."
 
 #: shdoclc.rc:76 shdoclc.rc:90 shdoclc.rc:114 shdoclc.rc:156 shdoclc.rc:180
 #: user32.rc:57 wordpad.rc:101
@@ -7489,7 +7489,7 @@ msgstr "剪下"
 
 #: shdoclc.rc:152
 msgid "&Save Video As..."
-msgstr "將視訊另存為(&S)…"
+msgstr "將視訊另存為(&S)..."
 
 #: shdoclc.rc:163 shdoclc.rc:187
 msgid "Play"
@@ -7777,7 +7777,7 @@ msgstr "開啟(&O):"
 #: shell32.rc:339 progman.rc:179 progman.rc:198 progman.rc:215 winecfg.rc:234
 #: winefile.rc:130
 msgid "&Browse..."
-msgstr "瀏覽(&B)…"
+msgstr "瀏覽(&B)..."
 
 #: shell32.rc:135 shell32.rc:139 winefile.rc:105
 msgid "Size"
@@ -8291,7 +8291,7 @@ msgstr "選擇視窗"
 
 #: user32.rc:69
 msgid "&More Windows..."
-msgstr "更多視窗(&M)…"
+msgstr "更多視窗(&M)..."
 
 #: wineps.rc:28
 msgid "Paper Si&ze:"
@@ -9114,7 +9114,7 @@ msgstr "處理參照時產生迴圈"
 msgid "Referral hop limit exceeded"
 msgstr "超出了參照躍點限制"
 
-#: attrib.rc:27 cmd.rc:325
+#: attrib.rc:27 cmd.rc:322
 msgid ""
 "Not Yet Implemented\n"
 "\n"
@@ -9122,7 +9122,7 @@ msgstr ""
 "尚未實作\n"
 "\n"
 
-#: attrib.rc:28 cmd.rc:328
+#: attrib.rc:28 cmd.rc:325
 msgid "%1: File Not Found\n"
 msgstr "%1: 找不到檔案\n"
 
@@ -9176,7 +9176,7 @@ msgstr "數位時鐘(&T)"
 
 #: clock.rc:32 notepad.rc:50 winecfg.rc:289 winefile.rc:60 wordpad.rc:81
 msgid "&Font..."
-msgstr "字型(&F)…"
+msgstr "字型(&F)..."
 
 #: clock.rc:34
 msgid "&Without Titlebar"
@@ -9280,23 +9280,17 @@ msgstr ""
 msgid "ERASE <filename> deletes a file or set of files.\n"
 msgstr "ERASE <檔名> 刪除一個檔案或一組檔案。\n"
 
-#: cmd.rc:69
+#: cmd.rc:66
 msgid ""
 "The FOR command is used to execute a command for each of a set of files.\n"
 "\n"
 "Syntax: FOR %variable IN (set) DO command\n"
-"\n"
-"The requirement to double the % sign when using FOR in a batch file does\n"
-"not exist in wine's cmd.\n"
 msgstr ""
 "FOR 命令用來向檔案集合中的每一個檔案執行命令。\n"
 "\n"
 "語法：FOR %變數 IN (集合) DO 命令\n"
-"\n"
-"在批次檔中使用 FOR 時必須重覆 % 符號的需求\n"
-"並不存在於 wine 的 cmd 中。\n"
 
-#: cmd.rc:81
+#: cmd.rc:78
 msgid ""
 "The GOTO command transfers execution to another statement within a\n"
 "batch file.\n"
@@ -9320,7 +9314,7 @@ msgstr ""
 "\n"
 "GOTO 用於互動模式中將沒有任何效果。\n"
 
-#: cmd.rc:84
+#: cmd.rc:81
 msgid ""
 "HELP <command> shows brief help details on a topic.\n"
 "HELP without an argument shows all CMD built-in commands.\n"
@@ -9328,7 +9322,7 @@ msgstr ""
 "HELP <命令> 顯示關於某一主題的簡明細節。\n"
 "HELP 不加引數時將顯示 CMD 所有的內建命令。\n"
 
-#: cmd.rc:94
+#: cmd.rc:91
 msgid ""
 "IF is used to conditionally execute a command.\n"
 "\n"
@@ -9348,7 +9342,7 @@ msgstr ""
 "在命令的第二種形式中，字串一和字串二必須位於雙引號之中。\n"
 "比較的動作是不分大小寫的。\n"
 
-#: cmd.rc:100
+#: cmd.rc:97
 msgid ""
 "LABEL is used to set a disk volume label.\n"
 "\n"
@@ -9362,15 +9356,15 @@ msgstr ""
 "命令將向您提示詢問新的卷冊標貼用於給定的儲存裝置。\n"
 "您可以利用 VOL 命令來顯示磁碟卷冊標貼。\n"
 
-#: cmd.rc:103
+#: cmd.rc:100
 msgid "MD <name> is the short version of MKDIR. It creates a subdirectory.\n"
 msgstr "MD <名稱> 是 MKDIR 的縮寫版本。它會建立子目錄。\n"
 
-#: cmd.rc:104
+#: cmd.rc:101
 msgid "MKDIR <name> creates a subdirectory.\n"
 msgstr "MKDIR <名稱> 建立子目錄。\n"
 
-#: cmd.rc:111
+#: cmd.rc:108
 msgid ""
 "MOVE relocates a file or directory to a new point within the file system.\n"
 "\n"
@@ -9387,7 +9381,7 @@ msgstr ""
 "\n"
 "如果舊的和新的位置在不同的 DOS 儲存裝置代號之上，MOVE 將會失敗。\n"
 
-#: cmd.rc:122
+#: cmd.rc:119
 msgid ""
 "PATH displays or changes the cmd search path.\n"
 "\n"
@@ -9409,7 +9403,7 @@ msgstr ""
 "舉例來說：\n"
 "PATH %PATH%;c:\\temp\n"
 
-#: cmd.rc:128
+#: cmd.rc:125
 msgid ""
 "PAUSE displays a message on the screen asking the user to press a key.\n"
 "\n"
@@ -9421,7 +9415,7 @@ msgstr ""
 "主要用於批次檔中，以允許使用者在前一個命令的\n"
 "輸出捲動離開螢幕之前能夠去讀取它。\n"
 
-#: cmd.rc:149
+#: cmd.rc:146
 msgid ""
 "PROMPT sets the command-line prompt.\n"
 "\n"
@@ -9462,7 +9456,7 @@ msgstr ""
 "提示字串也可以經由改變 PROMPT 環境變數而變更，\n"
 "因此命令 SET PROMPT=text 與 PROMPT text 具有相同的效果。\n"
 
-#: cmd.rc:153
+#: cmd.rc:150
 msgid ""
 "A command line beginning with REM (followed by a space) performs no\n"
 "action, and can therefore be used as a comment in a batch file.\n"
@@ -9470,23 +9464,23 @@ msgstr ""
 "以 REM 起始的命令列 (之後緊接空格) 不會進行任何\n"
 "動作，因而可以做為批次檔中的註釋。\n"
 
-#: cmd.rc:156
+#: cmd.rc:153
 msgid "REN <filename> is the short version of RENAME. It renames a file.\n"
 msgstr "REN <檔名> 是 RENAME 的簡短版本。它會重新命名檔案。\n"
 
-#: cmd.rc:157
+#: cmd.rc:154
 msgid "RENAME <filename> renames a file.\n"
 msgstr "RENAME <檔名> 重新命名檔案。\n"
 
-#: cmd.rc:159
+#: cmd.rc:156
 msgid "RD <dir> is the short version of RMDIR. It deletes a subdirectory.\n"
 msgstr "RD <目錄> 是 RMDIR 的簡短版本。它會刪除子目錄。\n"
 
-#: cmd.rc:160
+#: cmd.rc:157
 msgid "RMDIR <dir> deletes a subdirectory.\n"
 msgstr "RMDIR <目錄> 刪除子目錄。\n"
 
-#: cmd.rc:204
+#: cmd.rc:201
 msgid ""
 "SET displays or changes the cmd environment variables.\n"
 "\n"
@@ -9521,17 +9515,17 @@ msgstr ""
 "還要多出更多變數值。要注意的是，從 cmd 之中是不可能\n"
 "去影響作業系統的環境。\n"
 
-#: cmd.rc:209
+#: cmd.rc:206
 msgid ""
 "SHIFT is used in a batch file to remove one parameter from the head of\n"
 "the list, so parameter 2 becomes parameter 1 and so on. It has no effect\n"
 "if called from the command line.\n"
 msgstr ""
 "SHIFT 在批次檔中用來從參數列表的前端移除一個\n"
-"參數，因此參數 2 會成為參數 1 …等等。如果從命令列呼叫它，\n"
+"參數，因此參數 2 會成為參數 1... 等等。如果從命令列呼叫它，\n"
 "將不會有任何效果。\n"
 
-#: cmd.rc:186 start.rc:50
+#: cmd.rc:183 start.rc:50
 msgid ""
 "Start a program, or open a document in the program normally used for files "
 "with that suffix.\n"
@@ -9585,15 +9579,15 @@ msgstr ""
 "/ProgIDOpen  使用指定的 progID 開啟文件。\n"
 "/?           顯示這份說明然後離開。\n"
 
-#: cmd.rc:211
+#: cmd.rc:208
 msgid "TIME sets or shows the current system time.\n"
 msgstr "TIME 設定或顯示目前的系統時間。\n"
 
-#: cmd.rc:213
+#: cmd.rc:210
 msgid "TITLE <string> sets the window title for the cmd window.\n"
 msgstr "TITLE <字串> 設定 cmd 視窗的視窗標題。\n"
 
-#: cmd.rc:217
+#: cmd.rc:214
 msgid ""
 "TYPE <filename> copies <filename> to the console device (or elsewhere\n"
 "if redirected). No check is made that the file is readable text.\n"
@@ -9601,7 +9595,7 @@ msgstr ""
 "TYPE <檔名> 將 <檔名> 的內容複製到主控臺裝置 (或是其他被\n"
 "重新導向的地方)。不會檢查該檔案是否為可讀的文字。\n"
 
-#: cmd.rc:226
+#: cmd.rc:223
 msgid ""
 "VERIFY is used to set, clear or test the verify flag. Valid forms are:\n"
 "\n"
@@ -9619,15 +9613,15 @@ msgstr ""
 "\n"
 "驗證旗標在 Wine 中沒有任何功能。\n"
 
-#: cmd.rc:229
+#: cmd.rc:226
 msgid "VER displays the version of cmd you are running.\n"
 msgstr "VER 顯示您正在執行的 cmd 版本。\n"
 
-#: cmd.rc:231
+#: cmd.rc:228
 msgid "VOL shows the volume label of a disk device.\n"
 msgstr "VOL 顯示磁碟裝置的卷冊標貼。\n"
 
-#: cmd.rc:235
+#: cmd.rc:232
 msgid ""
 "ENDLOCAL ends localization of environment changes in a batch file\n"
 "which were introduced by a preceding SETLOCAL.\n"
@@ -9635,7 +9629,7 @@ msgstr ""
 "ENDLOCAL 在批次檔中結束本地的環境變更\n"
 "而這些是由之前的 SETLOCAL 所引入。\n"
 
-#: cmd.rc:243
+#: cmd.rc:240
 msgid ""
 "SETLOCAL starts localization of environment changes in a batch file.\n"
 "\n"
@@ -9651,7 +9645,7 @@ msgstr ""
 "的結束，取決於誰先出現)，前一個環境的設定值\n"
 "則於該點被儲存。\n"
 
-#: cmd.rc:246
+#: cmd.rc:243
 msgid ""
 "PUSHD <directoryname> saves the current directory onto a\n"
 "stack, and then changes the current directory to the supplied one.\n"
@@ -9659,11 +9653,11 @@ msgstr ""
 "PUSHD <目錄名> 儲存目前的目錄到\n"
 "堆疊中，然後變更現行目錄到所給定的目錄。\n"
 
-#: cmd.rc:248
+#: cmd.rc:245
 msgid "POPD changes current directory to the last one saved with PUSHD.\n"
 msgstr "POPD 變更現行目錄到上一個利用 PUSHD 儲存的目錄。\n"
 
-#: cmd.rc:256
+#: cmd.rc:253
 msgid ""
 "ASSOC shows or modifies file extension associations.\n"
 "\n"
@@ -9682,7 +9676,7 @@ msgstr ""
 "如果只使用副檔名，則顯示它目前的關聯。\n"
 "在等號之號如果沒有指定檔案類型就移除目前的任何關聯。\n"
 
-#: cmd.rc:267
+#: cmd.rc:264
 msgid ""
 "FTYPE shows or modifies open commands associated with file types.\n"
 "\n"
@@ -9703,11 +9697,11 @@ msgstr ""
 "如果只使用檔案類型，則顯示關聯的任何開啟命令字串。\n"
 "在等號之號如果沒有指定檔案類型就移除對於給定檔案型態的任何關聯命令字串。\n"
 
-#: cmd.rc:269
+#: cmd.rc:266
 msgid "MORE displays output of files or piped input in pages.\n"
 msgstr "MORE 以分頁的方式顯示檔案的輸出或管線的輸入。\n"
 
-#: cmd.rc:273
+#: cmd.rc:270
 msgid ""
 "CHOICE displays a text and waits, until the User\n"
 "presses an allowed Key from a selectable list.\n"
@@ -9717,7 +9711,7 @@ msgstr ""
 "從可選取的清單中按下允許的鍵。\n"
 "CHOICE 主要用來在批次檔中建構選單選擇。\n"
 
-#: cmd.rc:277
+#: cmd.rc:274
 msgid ""
 "EXIT terminates the current command session and returns\n"
 "to the operating system or shell from which you invoked cmd.\n"
@@ -9725,7 +9719,7 @@ msgstr ""
 "EXIT 終止目前的命令作業階段並回到\n"
 "您從其調用 cmd 的作業系統或命令殼。\n"
 
-#: cmd.rc:315
+#: cmd.rc:312
 msgid ""
 "CMD built-in commands are:\n"
 "ASSOC\t\tShow or modify file extension associations\n"
@@ -9805,110 +9799,110 @@ msgstr ""
 "\n"
 "輸入 HELP <命令> 以獲得關於以上任何命令的進一步資訊。\n"
 
-#: cmd.rc:317
+#: cmd.rc:314
 msgid "Are you sure?"
 msgstr "您確定嗎？"
 
-#: cmd.rc:318 xcopy.rc:40
+#: cmd.rc:315 xcopy.rc:40
 msgctxt "Yes key"
 msgid "Y"
 msgstr "Y"
 
-#: cmd.rc:319 xcopy.rc:41
+#: cmd.rc:316 xcopy.rc:41
 msgctxt "No key"
 msgid "N"
 msgstr "N"
 
-#: cmd.rc:320
+#: cmd.rc:317
 msgid "File association missing for extension %1\n"
 msgstr "缺少用於延伸檔名 %1 的檔案關聯\n"
 
-#: cmd.rc:321
+#: cmd.rc:318
 msgid "No open command associated with file type '%1'\n"
 msgstr "沒有與檔案類型 %1 相關聯的開啟命令\n"
 
-#: cmd.rc:322
+#: cmd.rc:319
 msgid "Overwrite %1?"
 msgstr "覆寫 %1？"
 
-#: cmd.rc:323
+#: cmd.rc:320
 msgid "More..."
-msgstr "更多…"
+msgstr "更多..."
 
-#: cmd.rc:324
+#: cmd.rc:321
 msgid "Line in Batch processing possibly truncated. Using:\n"
 msgstr "命令列於批次處理時可能會被截斷。使用：\n"
 
-#: cmd.rc:326
+#: cmd.rc:323
 msgid "Argument missing\n"
 msgstr "缺少引數\n"
 
-#: cmd.rc:327
+#: cmd.rc:324
 msgid "Syntax error\n"
 msgstr "語法錯誤\n"
 
-#: cmd.rc:329
+#: cmd.rc:326
 msgid "No help available for %1\n"
 msgstr "沒有關於 %1 的說明\n"
 
-#: cmd.rc:330
+#: cmd.rc:327
 msgid "Target to GOTO not found\n"
 msgstr "找不到 GOTO 的目標\n"
 
-#: cmd.rc:331
+#: cmd.rc:328
 msgid "Current Date is %1\n"
 msgstr "今天是 %1\n"
 
-#: cmd.rc:332
+#: cmd.rc:329
 msgid "Current Time is %1\n"
 msgstr "現在時間是 %1\n"
 
-#: cmd.rc:333
+#: cmd.rc:330
 msgid "Enter new date: "
 msgstr "輸入新日期："
 
-#: cmd.rc:334
+#: cmd.rc:331
 msgid "Enter new time: "
 msgstr "輸入新時間："
 
-#: cmd.rc:335
+#: cmd.rc:332
 msgid "Environment variable %1 not defined\n"
 msgstr "環境變數 %1 未定義\n"
 
-#: cmd.rc:336 xcopy.rc:38
+#: cmd.rc:333 xcopy.rc:38
 msgid "Failed to open '%1'\n"
 msgstr "開啟 %1 失敗\n"
 
-#: cmd.rc:337
+#: cmd.rc:334
 msgid "Cannot call batch label outside of a batch script\n"
 msgstr "無法呼叫批次命令稿外部的批次標貼\n"
 
-#: cmd.rc:338 xcopy.rc:42
+#: cmd.rc:335 xcopy.rc:42
 msgctxt "All key"
 msgid "A"
 msgstr "A"
 
-#: cmd.rc:339
+#: cmd.rc:336
 msgid "Delete %1?"
 msgstr "刪除 %1？"
 
-#: cmd.rc:340
+#: cmd.rc:337
 msgid "Echo is %1\n"
 msgstr "回應為 %1\n"
 
-#: cmd.rc:341
+#: cmd.rc:338
 msgid "Verify is %1\n"
 msgstr "驗證為 %1\n"
 
-#: cmd.rc:342
+#: cmd.rc:339
 msgid "Verify must be ON or OFF\n"
 msgstr "驗證必須為 ON 或 OFF\n"
 
-#: cmd.rc:343
+#: cmd.rc:340
 msgid "Parameter error\n"
 msgstr "參數錯誤\n"
 
-#: cmd.rc:344
+#: cmd.rc:341
 msgid ""
 "Volume Serial Number is %1!04x!-%2!04x!\n"
 "\n"
@@ -9916,72 +9910,74 @@ msgstr ""
 "卷冊序號是 %1!04x!-%2!04x!\n"
 "\n"
 
-#: cmd.rc:345
+#: cmd.rc:342
 msgid "Volume label (11 characters, <Enter> for none)?"
 msgstr "卷冊標貼 (11 個字元，<Enter> 表示沒有)？"
 
-#: cmd.rc:346
+#: cmd.rc:343
 msgid "PATH not found\n"
 msgstr "找不到 PATH\n"
 
-#: cmd.rc:347
+#: cmd.rc:344
 msgid "Press any key to continue... "
-msgstr "按下任何鍵繼續…"
+msgstr "按下任何鍵繼續... "
 
-#: cmd.rc:348
+#: cmd.rc:345
 msgid "Wine Command Prompt"
 msgstr "Wine 命令提示符號"
 
-#: cmd.rc:349
+#: cmd.rc:346
 msgid "Wine CMD Version %1!S!\n"
 msgstr "Wine CMD 版本 %1!S!\n"
 
-#: cmd.rc:350
+#: cmd.rc:347
 msgid "More? "
 msgstr "更多？"
 
-#: cmd.rc:351
+#: cmd.rc:348
 msgid "The input line is too long.\n"
 msgstr "輸入列太長。\n"
 
-#: cmd.rc:352
+#: cmd.rc:349
 msgid "Volume in drive %1!c! is %2\n"
 msgstr "位於儲存裝置 %1!c! 的卷冊為 %2\n"
 
-#: cmd.rc:353
+#: cmd.rc:350
 msgid "Volume in drive %1!c! has no label.\n"
 msgstr "位於儲存裝置 %1!c! 的卷冊沒有任何標貼。\n"
 
-#: cmd.rc:354
+#: cmd.rc:351
+#, fuzzy
 msgid " (Yes|No)"
 msgstr " (是|否)"
 
-#: cmd.rc:355
+#: cmd.rc:352
+#, fuzzy
 msgid " (Yes|No|All)"
 msgstr " (是|否|全部)"
 
-#: cmd.rc:356
+#: cmd.rc:353
 msgid ""
 "Can't recognize '%1' as an internal or external command, or batch script.\n"
 msgstr "無法識別 %1 為內部、外部命令或是批次命令稿。\n"
 
-#: cmd.rc:357
+#: cmd.rc:354
 msgid "Division by zero error.\n"
 msgstr "被零除的錯誤。\n"
 
-#: cmd.rc:358
+#: cmd.rc:355
 msgid "Expected an operand.\n"
 msgstr "預期為一個運算元。\n"
 
-#: cmd.rc:359
+#: cmd.rc:356
 msgid "Expected an operator.\n"
 msgstr "預期為一個運算子。\n"
 
-#: cmd.rc:360
+#: cmd.rc:357
 msgid "Mismatch in parentheses.\n"
 msgstr "小括號不匹配。\n"
 
-#: cmd.rc:361
+#: cmd.rc:358
 msgid ""
 "Badly formed number - must be one of decimal (12),\n"
 " hexadecimal (0x34) or octal (056).\n"
@@ -10331,7 +10327,7 @@ msgstr "新增(&N)\tCtrl+N"
 
 #: notepad.rc:28 wordpad.rc:29
 msgid "&Open...\tCtrl+O"
-msgstr "開啟(&O)…\tCtrl+O"
+msgstr "開啟(&O)...\tCtrl+O"
 
 #: notepad.rc:29 wordpad.rc:30
 msgid "&Save\tCtrl+S"
@@ -10339,15 +10335,15 @@ msgstr "儲存(&S)\tCtrl+S"
 
 #: notepad.rc:32 regedit.rc:36 wordpad.rc:33
 msgid "&Print...\tCtrl+P"
-msgstr "列印(&P)…\tCtrl+P"
+msgstr "列印(&P)...\tCtrl+P"
 
 #: notepad.rc:33 wordpad.rc:35
 msgid "Page Se&tup..."
-msgstr "版面設定(&T)…"
+msgstr "版面設定(&T)..."
 
 #: notepad.rc:34
 msgid "P&rinter Setup..."
-msgstr "列印設定(&R)…"
+msgstr "列印設定(&R)..."
 
 #: notepad.rc:38 regedit.rc:40 wineconsole.rc:25 winhlp32.rc:36 wordpad.rc:39
 msgid "&Edit"
@@ -10388,7 +10384,7 @@ msgstr "自動換列(&W)"
 
 #: notepad.rc:53
 msgid "&Search...\tCtrl+F"
-msgstr "尋找(&S)…\tCtrl+F"
+msgstr "尋找(&S)...\tCtrl+F"
 
 #: notepad.rc:54
 msgid "&Search next\tF3"
@@ -10396,7 +10392,7 @@ msgstr "找下一個(&S)\tF3"
 
 #: notepad.rc:55 wordpad.rc:52
 msgid "&Replace...\tCtrl+H"
-msgstr "取代(&R)…\tCtrl+H"
+msgstr "取代(&R)...\tCtrl+H"
 
 #: notepad.rc:58 progman.rc:53 regedit.rc:78 winefile.rc:80
 msgid "&Contents\tF1"
@@ -10563,11 +10559,11 @@ msgstr ""
 
 #: oleview.rc:29
 msgid "&Bind to file..."
-msgstr "檔案綁定(&B)…"
+msgstr "檔案綁定(&B)..."
 
 #: oleview.rc:30
 msgid "&View TypeLib..."
-msgstr "查看 &TypeLib…"
+msgstr "查看 &TypeLib..."
 
 #: oleview.rc:32
 msgid "&System Configuration"
@@ -10611,7 +10607,7 @@ msgstr "建立實例(&I)"
 
 #: oleview.rc:50
 msgid "Create Instance &On..."
-msgstr "建立實例在(&O)…"
+msgstr "建立實例在(&O)..."
 
 #: oleview.rc:51
 msgid "&Release Instance"
@@ -10651,7 +10647,7 @@ msgstr "關於 OleView(&A)"
 
 #: oleview.rc:79
 msgid "&Save as..."
-msgstr "另存為(&S)…"
+msgstr "另存為(&S)..."
 
 #: oleview.rc:84
 msgid "&Group by type kind"
@@ -10904,7 +10900,7 @@ msgstr "依類別分組"
 
 #: progman.rc:30
 msgid "&New..."
-msgstr "新增(&N)…"
+msgstr "新增(&N)..."
 
 #: progman.rc:31
 msgid "O&pen\tEnter"
@@ -10912,11 +10908,11 @@ msgstr "開啟(&P)\tEnter"
 
 #: progman.rc:32 winefile.rc:27
 msgid "&Move...\tF7"
-msgstr "移動(&M)…\tF7"
+msgstr "移動(&M)...\tF7"
 
 #: progman.rc:33 winefile.rc:28
 msgid "&Copy...\tF8"
-msgstr "複製(&C)…\tF8"
+msgstr "複製(&C)...\tF8"
 
 #: progman.rc:35
 msgid "&Properties\tAlt+Enter"
@@ -10924,7 +10920,7 @@ msgstr "屬性(&P)\tAlt+Enter"
 
 #: progman.rc:37
 msgid "&Execute..."
-msgstr "執行(&E)…"
+msgstr "執行(&E)..."
 
 #: progman.rc:39
 msgid "E&xit Windows"
@@ -11028,7 +11024,7 @@ msgstr "啟動後最小化(&M)"
 
 #: progman.rc:180
 msgid "Change &icon..."
-msgstr "變更圖示(&I)…"
+msgstr "變更圖示(&I)..."
 
 #: progman.rc:189
 msgid "Change Icon"
@@ -11168,11 +11164,11 @@ msgstr "註冊表(&R)"
 
 #: regedit.rc:33
 msgid "&Import Registry File..."
-msgstr "匯入註冊表檔案(&I)…"
+msgstr "匯入註冊表檔案(&I)..."
 
 #: regedit.rc:34
 msgid "&Export Registry File..."
-msgstr "匯出註冊表檔案(&E)…"
+msgstr "匯出註冊表檔案(&E)..."
 
 #: regedit.rc:46 regedit.rc:97
 msgid "&Key"
@@ -11208,7 +11204,7 @@ msgstr "複製索引鍵名稱(&C)"
 
 #: regedit.rc:60 regedit.rc:112 wordpad.rc:50
 msgid "&Find...\tCtrl+F"
-msgstr "搜尋(&F)…\tCtrl+F"
+msgstr "搜尋(&F)...\tCtrl+F"
 
 #: regedit.rc:61
 msgid "Find Ne&xt\tF3"
@@ -11224,7 +11220,7 @@ msgstr "分割(&L)"
 
 #: regedit.rc:74
 msgid "&Remove Favorite..."
-msgstr "移除我的最愛(&R)…"
+msgstr "移除我的最愛(&R)..."
 
 #: regedit.rc:79
 msgid "&About Registry Editor"
@@ -11232,7 +11228,7 @@ msgstr "關於註冊表編輯器(&A)"
 
 #: regedit.rc:88
 msgid "Modify Binary Data..."
-msgstr "修改二進位資料…"
+msgstr "修改二進位資料..."
 
 #: regedit.rc:215
 msgid "Export registry"
@@ -11579,7 +11575,7 @@ msgstr "錯誤：不允許行程自我終止。\n"
 
 #: taskmgr.rc:37 taskmgr.rc:108
 msgid "&New Task (Run...)"
-msgstr "新工作(&N)…"
+msgstr "新工作(&N)..."
 
 #: taskmgr.rc:39
 msgid "E&xit Task Manager"
@@ -11623,7 +11619,7 @@ msgstr "暫停(&P)"
 
 #: taskmgr.rc:68 taskmgr.rc:256
 msgid "&Select Columns..."
-msgstr "選擇行(&S)…"
+msgstr "選擇行(&S)..."
 
 #: taskmgr.rc:69 taskmgr.rc:258
 msgid "&CPU History"
@@ -11707,11 +11703,11 @@ msgstr "正常以下(&B)"
 
 #: taskmgr.rc:169
 msgid "Set &Affinity..."
-msgstr "設定親和度(&A)…"
+msgstr "設定親和度(&A)..."
 
 #: taskmgr.rc:170
 msgid "Edit Debug &Channels..."
-msgstr "編輯除錯通道(&C)…"
+msgstr "編輯除錯通道(&C)..."
 
 #: taskmgr.rc:338 taskmgr.rc:180 taskmgr.rc:181
 msgid "Task Manager"
@@ -11719,7 +11715,7 @@ msgstr "工作管理員"
 
 #: taskmgr.rc:351
 msgid "&New Task..."
-msgstr "新工作(&N)…"
+msgstr "新工作(&N)..."
 
 #: taskmgr.rc:364
 msgid "&Show processes from all users"
@@ -12425,7 +12421,7 @@ msgstr "Wine"
 
 #: wineboot.rc:43
 msgid "The Wine configuration in %s is being updated, please wait..."
-msgstr "正在更新 %s 的 Wine 設定，請稍候…"
+msgstr "正在更新 %s 的 Wine 設定，請稍候..."
 
 #: winecfg.rc:132
 msgid ""
@@ -12464,7 +12460,7 @@ msgstr ""
 
 #: winecfg.rc:150
 msgid "&Add application..."
-msgstr "新增程式設定(&A)…"
+msgstr "新增程式設定(&A)..."
 
 #: winecfg.rc:151
 msgid "&Remove application"
@@ -12533,7 +12529,7 @@ msgstr "已有的函式庫覆載(&O)："
 
 #: winecfg.rc:190
 msgid "&Edit..."
-msgstr "編輯(&E)…"
+msgstr "編輯(&E)..."
 
 #: winecfg.rc:196
 msgid "Edit Override"
@@ -12575,7 +12571,7 @@ msgstr "連線到掛載管理員時失敗，無法編輯磁碟組態。"
 
 #: winecfg.rc:227
 msgid "&Add..."
-msgstr "加入(&A)…"
+msgstr "加入(&A)..."
 
 #: winecfg.rc:229
 msgid "Auto&detect"
@@ -12595,7 +12591,7 @@ msgstr "裝置(&V)："
 
 #: winecfg.rc:242
 msgid "Bro&wse..."
-msgstr "瀏覽(&W)…"
+msgstr "瀏覽(&W)..."
 
 #: winecfg.rc:244
 msgid "&Label:"
@@ -12647,7 +12643,7 @@ msgstr "布景主題(&T)："
 
 #: winecfg.rc:277
 msgid "&Install theme..."
-msgstr "安裝布景主題(&I)…"
+msgstr "安裝布景主題(&I)..."
 
 #: winecfg.rc:282
 msgid "It&em:"
@@ -13257,7 +13253,7 @@ msgstr "儲存失敗"
 
 #: winedbg.rc:41
 msgid "Loading detailed information, please wait..."
-msgstr "正在載入詳細資訊，請稍待…"
+msgstr "正在載入詳細資訊，請稍待..."
 
 #: winefile.rc:26
 msgid "&Open\tEnter"
@@ -13265,7 +13261,7 @@ msgstr "開啟(&O)\tEnter"
 
 #: winefile.rc:30
 msgid "Re&name..."
-msgstr "重新命名(&N)…"
+msgstr "重新命名(&N)..."
 
 #: winefile.rc:31
 msgid "Propert&ies\tAlt+Enter"
@@ -13273,11 +13269,11 @@ msgstr "屬性(&I)\tAlt+Enter"
 
 #: winefile.rc:33
 msgid "&Run..."
-msgstr "執行(&R)…"
+msgstr "執行(&R)..."
 
 #: winefile.rc:35
 msgid "Cr&eate Directory..."
-msgstr "建立目錄(&E)…"
+msgstr "建立目錄(&E)..."
 
 #: winefile.rc:40
 msgid "&Disk"
@@ -13285,7 +13281,7 @@ msgstr "磁碟(&D)"
 
 #: winefile.rc:41
 msgid "Connect &Network Drive..."
-msgstr "連線至網路儲存裝置(&N)…"
+msgstr "連線至網路儲存裝置(&N)..."
 
 #: winefile.rc:42
 msgid "&Disconnect Network Drive"
@@ -13317,7 +13313,7 @@ msgstr "依日期排列(&D)"
 
 #: winefile.rc:56
 msgid "Filter by&..."
-msgstr "篩選依據…(&.)"
+msgstr "篩選依據...(&.)"
 
 #: winefile.rc:63
 msgid "&Drive Bar"
@@ -13509,7 +13505,7 @@ msgstr "專家(&E)"
 
 #: winemine.rc:42
 msgid "&Custom..."
-msgstr "自訂(&C)…"
+msgstr "自訂(&C)..."
 
 #: winemine.rc:44
 msgid "&Fastest Times"
@@ -13577,11 +13573,11 @@ msgstr "Copyright 2000 Joshua Thielen"
 
 #: winhlp32.rc:32
 msgid "Printer &setup..."
-msgstr "印表機設定(&S)…"
+msgstr "印表機設定(&S)..."
 
 #: winhlp32.rc:39
 msgid "&Annotate..."
-msgstr "註釋(&A)…"
+msgstr "註釋(&A)..."
 
 #: winhlp32.rc:41
 msgid "&Bookmark"
@@ -13589,7 +13585,7 @@ msgstr "書籤(&B)"
 
 #: winhlp32.rc:42
 msgid "&Define..."
-msgstr "定義(&D)…"
+msgstr "定義(&D)..."
 
 #: winhlp32.rc:46 winhlp32.rc:67
 msgid "Fonts"
@@ -13621,7 +13617,7 @@ msgstr "關於 Wine 說明(&A)"
 
 #: winhlp32.rc:64
 msgid "Annotation..."
-msgstr "註釋…"
+msgstr "註釋..."
 
 #: winhlp32.rc:65
 msgid "Copy"
@@ -13661,7 +13657,7 @@ msgstr "無法開啟檔案 %s。 您想要自己搜尋這個檔案嗎？"
 
 #: winhlp32.rc:90
 msgid "Cannot find a richedit implementation... Aborting"
-msgstr "找不到 richedit… 終止"
+msgstr "找不到 richedit... 終止"
 
 #: winhlp32.rc:91
 msgid "Help topics: "
@@ -13681,7 +13677,7 @@ msgstr "錯誤：無效的查詢\n"
 
 #: wordpad.rc:28
 msgid "&New...\tCtrl+N"
-msgstr "新增(&N)…\tCtrl+N"
+msgstr "新增(&N)...\tCtrl+N"
 
 #: wordpad.rc:42
 msgid "R&edo\tCtrl+Y"
@@ -13745,7 +13741,7 @@ msgstr "插入(&I)"
 
 #: wordpad.rc:77
 msgid "&Date and time..."
-msgstr "日期時間(&D)…"
+msgstr "日期時間(&D)..."
 
 #: wordpad.rc:79
 msgid "F&ormat"
@@ -13757,11 +13753,11 @@ msgstr "項目符號(&B)"
 
 #: wordpad.rc:83 wordpad.rc:106
 msgid "&Paragraph..."
-msgstr "段落(&P)…"
+msgstr "段落(&P)..."
 
 #: wordpad.rc:84
 msgid "&Tabs..."
-msgstr "分頁(&T)…"
+msgstr "分頁(&T)..."
 
 #: wordpad.rc:85
 msgid "Backgroun&d"
