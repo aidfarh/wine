@@ -2905,16 +2905,12 @@ HRESULT WINAPI CoCreateInstance(
 
     /*
      * The Standard Global Interface Table (GIT) object is a process-wide singleton.
-     * Rather than create a class factory, we can just check for it here
      */
     if (IsEqualIID(rclsid, &CLSID_StdGlobalInterfaceTable))
     {
-        if (StdGlobalInterfaceTableInstance == NULL)
-            StdGlobalInterfaceTableInstance = StdGlobalInterfaceTable_Construct();
-        hres = IGlobalInterfaceTable_QueryInterface((IGlobalInterfaceTable*)StdGlobalInterfaceTableInstance,
-                                                    iid,
-                                                    ppv);
-        if (hres) return hres;
+        IGlobalInterfaceTable *git = get_std_git();
+        hres = IGlobalInterfaceTable_QueryInterface(git, iid, ppv);
+        if (hres != S_OK) return hres;
 
         TRACE("Retrieved GIT (%p)\n", *ppv);
         return S_OK;
@@ -2996,7 +2992,7 @@ HRESULT WINAPI CoCreateInstanceEx(
 			&IID_IUnknown,
 			(VOID**)&pUnk);
 
-  if (hr)
+  if (hr != S_OK)
     return hr;
 
   /*
@@ -4594,6 +4590,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID reserved)
 
     case DLL_PROCESS_DETACH:
         if (reserved) break;
+        release_std_git();
         COMPOBJ_UninitProcess();
         RPC_UnregisterAllChannelHooks();
         COMPOBJ_DllList_Free();

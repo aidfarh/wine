@@ -1,7 +1,8 @@
 /* include/config.h.in.  Generated from configure.ac by autoheader.  */
 
-#ifndef WINE_CROSSTEST
+#ifndef __WINE_CONFIG_H
 #define __WINE_CONFIG_H
+#ifndef WINE_CROSSTEST
 
 /* Define to a function attribute for Microsoft hotpatch assembly prefix. */
 #undef DECLSPEC_HOTPATCH
@@ -303,13 +304,10 @@
 #undef HAVE_LBER_H
 
 /* Define if you have the LittleCMS development environment */
-#undef HAVE_LCMS
+#undef HAVE_LCMS2
 
-/* Define to 1 if you have the <lcms.h> header file. */
-#undef HAVE_LCMS_H
-
-/* Define to 1 if you have the <lcms/lcms.h> header file. */
-#undef HAVE_LCMS_LCMS_H
+/* Define to 1 if you have the <lcms2.h> header file. */
+#undef HAVE_LCMS2_H
 
 /* Define if you have the OpenLDAP development environment */
 #undef HAVE_LDAP
@@ -352,6 +350,15 @@
 
 /* Define to 1 if you have the `ossaudio' library (-lossaudio). */
 #undef HAVE_LIBOSSAUDIO
+
+/* Define to 1 if you have the `procstat' library (-lprocstat). */
+#undef HAVE_LIBPROCSTAT
+
+/* Define to 1 if you have the <libprocstat.h> header file. */
+#undef HAVE_LIBPROCSTAT_H
+
+/* Define to 1 if you have the <libproc.h> header file. */
+#undef HAVE_LIBPROC_H
 
 /* Define to 1 if you have the <libv4l1.h> header file. */
 #undef HAVE_LIBV4L1_H
@@ -625,6 +632,9 @@
 
 /* Define to 1 if you have the <process.h> header file. */
 #undef HAVE_PROCESS_H
+
+/* Define to 1 if you have the `proc_pidinfo' function. */
+#undef HAVE_PROC_PIDINFO
 
 /* Define to 1 if you have the `pthread_attr_get_np' function. */
 #undef HAVE_PTHREAD_ATTR_GET_NP
@@ -902,6 +912,9 @@
 /* Define to 1 if the system has the type `struct xinpgen'. */
 #undef HAVE_STRUCT_XINPGEN
 
+/* Define to 1 if `_u._ext.nscount6' is a member of `struct __res_state'. */
+#undef HAVE_STRUCT___RES_STATE__U__EXT_NSCOUNT6
+
 /* Define to 1 if you have the `symlink' function. */
 #undef HAVE_SYMLINK
 
@@ -976,6 +989,9 @@
 
 /* Define to 1 if you have the <sys/ptrace.h> header file. */
 #undef HAVE_SYS_PTRACE_H
+
+/* Define to 1 if you have the <sys/queue.h> header file. */
+#undef HAVE_SYS_QUEUE_H
 
 /* Define to 1 if you have the <sys/resource.h> header file. */
 #undef HAVE_SYS_RESOURCE_H
@@ -1055,8 +1071,8 @@
 /* Define to 1 if you have the <sys/wait.h> header file. */
 #undef HAVE_SYS_WAIT_H
 
-/* Define to 1 if you have the `tcgetattr' function. */
-#undef HAVE_TCGETATTR
+/* Define to 1 if you have the `tcdrain' function. */
+#undef HAVE_TCDRAIN
 
 /* Define to 1 if you have the <termios.h> header file. */
 #undef HAVE_TERMIOS_H
@@ -1369,3 +1385,4 @@
 #endif
 
 #endif /* WINE_CROSSTEST */
+#endif /* __WINE_CONFIG_H */

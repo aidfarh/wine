@@ -49,6 +49,7 @@ PUBLIC_IDL_H_SRCS = \
 	imnact.idl \
 	imnxport.idl \
 	indexsrv.idl \
+	inputscope.idl \
 	mediaobj.idl \
 	metahost.idl \
 	mimeinfo.idl \
@@ -108,6 +109,7 @@ PUBLIC_IDL_H_SRCS = \
 	urlmon.idl \
 	vmr9.idl \
 	wbemcli.idl \
+	wbemdisp.idl \
 	wbemprov.idl \
 	wia_lh.idl \
 	wia_xp.idl \
@@ -162,6 +164,7 @@ SRCDIR_INCLUDES = \
 	cderr.h \
 	cfgmgr32.h \
 	cguid.h \
+	chprst.idl \
 	cierror.h \
 	clusapi.h \
 	cmdbas.idl \
@@ -236,12 +239,15 @@ SRCDIR_INCLUDES = \
 	ddk/usb100.h \
 	ddk/usb200.h \
 	ddk/usbdlib.h \
+	ddk/usbioctl.h \
+	ddk/usbiodef.h \
 	ddk/wdm.h \
 	ddk/winddiui.h \
 	ddk/winsplp.h \
 	ddraw.h \
 	ddrawgdi.h \
 	ddrawi.h \
+	delayloadhandler.h \
 	devenum.idl \
 	devguid.h \
 	devpkey.h \
@@ -288,6 +294,7 @@ SRCDIR_INCLUDES = \
 	dyngraph.idl \
 	errorrep.h \
 	errors.h \
+	errrec.idl \
 	evcode.h \
 	evntprov.h \
 	evntrace.h \
@@ -295,6 +302,7 @@ SRCDIR_INCLUDES = \
 	exdispid.h \
 	fci.h \
 	fdi.h \
+	fileapi.h \
 	fltdefs.h \
 	gdiplus.h \
 	gdipluscolor.h \
@@ -477,6 +485,8 @@ SRCDIR_INCLUDES = \
 	rmxfguid.h \
 	row.idl \
 	rowchg.idl \
+	rowpos.idl \
+	rowpsc.idl \
 	rpc.h \
 	rpcasync.h \
 	rpcdce.h \
@@ -514,6 +524,7 @@ SRCDIR_INCLUDES = \
 	sql.h \
 	sqlext.h \
 	sqltypes.h \
+	srcrst.idl \
 	srrestoreptapi.h \
 	sspi.h \
 	sti.h \

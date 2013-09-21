@@ -5607,17 +5607,28 @@ HRESULT ddraw_surface_create_texture(struct ddraw_surface *surface, DWORD surfac
     else
         layers = 1;
 
-    /* DDSCAPS_SYSTEMMEMORY textures are in WINED3D_POOL_SYSTEM_MEM.
-     * Should I forward the MANAGED cap to the managed pool? */
-    if (desc->ddsCaps.dwCaps & DDSCAPS_SYSTEMMEMORY)
+    if (desc->ddsCaps.dwCaps2 & DDSCAPS2_TEXTUREMANAGE)
+    {
+        wined3d_desc.usage = WINED3DUSAGE_TEXTURE;
+        pool = WINED3D_POOL_MANAGED;
+    }
+    else if (desc->ddsCaps.dwCaps & DDSCAPS_SYSTEMMEMORY)
+    {
+        /* ddraw does not enforce format support restrictions on system memory
+         * textures. Don't set the texture flag, the texture can't be used for
+         * texturing anyway. */
+        wined3d_desc.usage = 0;
         pool = WINED3D_POOL_SYSTEM_MEM;
+    }
     else
+    {
+        wined3d_desc.usage = WINED3DUSAGE_TEXTURE;
         pool = WINED3D_POOL_DEFAULT;
+    }
 
     wined3d_desc.format = wined3dformat_from_ddrawformat(&surface->surface_desc.u4.ddpfPixelFormat);
     wined3d_desc.multisample_type = WINED3D_MULTISAMPLE_NONE;
     wined3d_desc.multisample_quality = 0;
-    wined3d_desc.usage = 0;
     wined3d_desc.pool = pool;
     wined3d_desc.width = desc->dwWidth;
     wined3d_desc.height = desc->dwHeight;
@@ -5640,6 +5651,16 @@ HRESULT ddraw_surface_create_texture(struct ddraw_surface *surface, DWORD surfac
     if (FAILED(hr))
     {
         WARN("Failed to create wined3d texture, hr %#x.\n", hr);
+        switch (hr)
+        {
+            case WINED3DERR_INVALIDCALL:
+                hr = DDERR_INVALIDPARAMS;
+                break;
+
+            default:
+                FIXME("Unexpected wined3d error %#x.\n", hr);
+                break;
+        }
         return hr;
     }
 
@@ -5716,10 +5737,7 @@ HRESULT ddraw_surface_init(struct ddraw_surface *surface, struct ddraw *ddraw,
     }
 
     if (desc->ddsCaps.dwCaps & DDSCAPS_PRIMARYSURFACE)
-    {
-        usage |= WINED3DUSAGE_RENDERTARGET;
         desc->ddsCaps.dwCaps |= DDSCAPS_VISIBLE;
-    }
 
     if ((desc->ddsCaps.dwCaps & DDSCAPS_3DDEVICE) && !(desc->ddsCaps.dwCaps & DDSCAPS_ZBUFFER))
     {

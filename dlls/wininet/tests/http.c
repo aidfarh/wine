@@ -1759,6 +1759,27 @@ static void HttpHeaders_test(void)
     ok(index == 1, "Index was not incremented\n");
     ok(strcmp(buffer,"value3")==0, "incorrect string was returned(%s)\n",buffer);
 
+    ok(HttpAddRequestHeaders(hRequest, "Authorization: Basic\r\n", -1, HTTP_ADDREQ_FLAG_ADD),
+       "unable to add header %u\n", GetLastError());
+
+    index = 0;
+    buffer[0] = 0;
+    len = sizeof(buffer);
+    ok(HttpQueryInfo(hRequest, HTTP_QUERY_AUTHORIZATION|HTTP_QUERY_FLAG_REQUEST_HEADERS, buffer, &len, &index),
+       "unable to query header %u\n", GetLastError());
+    ok(index == 1, "index was not incremented\n");
+    ok(!strcmp(buffer, "Basic"), "incorrect string was returned (%s)\n", buffer);
+
+    ok(HttpAddRequestHeaders(hRequest, "Authorization:\r\n", -1, HTTP_ADDREQ_FLAG_REPLACE),
+       "unable to remove header %u\n", GetLastError());
+
+    index = 0;
+    len = sizeof(buffer);
+    SetLastError(0xdeadbeef);
+    ok(!HttpQueryInfo(hRequest, HTTP_QUERY_AUTHORIZATION|HTTP_QUERY_FLAG_REQUEST_HEADERS, buffer, &len, &index),
+       "header still present\n");
+    ok(GetLastError() == ERROR_HTTP_HEADER_NOT_FOUND, "got %u\n", GetLastError());
+
     ok(InternetCloseHandle(hRequest), "Close request handle failed\n");
 done:
     ok(InternetCloseHandle(hConnect), "Close connect handle failed\n");
@@ -2083,6 +2104,13 @@ static DWORD CALLBACK server_thread(LPVOID param)
         }
         if (strstr(buffer, "GET /send_from_buffer"))
             send(c, send_buffer, strlen(send_buffer), 0);
+        if (strstr(buffer, "/test_cache_control_verb"))
+        {
+            if (!memcmp(buffer, "GET ", sizeof("GET ")-1) &&
+                !strstr(buffer, "Cache-Control: no-cache\r\n")) send(c, okmsg, sizeof(okmsg)-1, 0);
+            else if (strstr(buffer, "Cache-Control: no-cache\r\n")) send(c, okmsg, sizeof(okmsg)-1, 0);
+            send(c, notokmsg, sizeof(notokmsg)-1, 0);
+        }
         if (strstr(buffer, "GET /test_premature_disconnect"))
             trace("closing connection\n");
 
@@ -2242,6 +2270,71 @@ static void test_proxy_direct(int port)
     hr = HttpOpenRequest(hc, NULL, "/test2", NULL, NULL, NULL, 0, 0);
     ok(hr != NULL, "HttpOpenRequest failed\n");
 
+    sz = 0;
+    SetLastError(0xdeadbeef);
+    r = InternetQueryOption(hr, INTERNET_OPTION_PROXY_PASSWORD, NULL, &sz);
+    ok(GetLastError() == ERROR_INSUFFICIENT_BUFFER, "got %u\n", GetLastError());
+    ok(!r, "unexpected success\n");
+    ok(sz == 1, "got %u\n", sz);
+
+    sz = 0;
+    SetLastError(0xdeadbeef);
+    r = InternetQueryOption(hr, INTERNET_OPTION_PROXY_USERNAME, NULL, &sz);
+    ok(GetLastError() == ERROR_INSUFFICIENT_BUFFER, "got %u\n", GetLastError());
+    ok(!r, "unexpected success\n");
+    ok(sz == 1, "got %u\n", sz);
+
+    sz = sizeof(buffer);
+    SetLastError(0xdeadbeef);
+    r = InternetQueryOption(hr, INTERNET_OPTION_PROXY_PASSWORD, buffer, &sz);
+    ok(r, "unexpected failure %u\n", GetLastError());
+    ok(!sz, "got %u\n", sz);
+
+    sz = sizeof(buffer);
+    SetLastError(0xdeadbeef);
+    r = InternetQueryOption(hr, INTERNET_OPTION_PROXY_USERNAME, buffer, &sz);
+    ok(r, "unexpected failure %u\n", GetLastError());
+    ok(!sz, "got %u\n", sz);
+
+    sz = 0;
+    SetLastError(0xdeadbeef);
+    r = InternetQueryOption(hr, INTERNET_OPTION_PASSWORD, NULL, &sz);
+    ok(GetLastError() == ERROR_INSUFFICIENT_BUFFER, "got %u\n", GetLastError());
+    ok(!r, "unexpected success\n");
+    ok(sz == 1, "got %u\n", sz);
+
+    sz = 0;
+    SetLastError(0xdeadbeef);
+    r = InternetQueryOption(hr, INTERNET_OPTION_USERNAME, NULL, &sz);
+    ok(GetLastError() == ERROR_INSUFFICIENT_BUFFER, "got %u\n", GetLastError());
+    ok(!r, "unexpected success\n");
+    ok(sz == 1, "got %u\n", sz);
+
+    sz = sizeof(buffer);
+    SetLastError(0xdeadbeef);
+    r = InternetQueryOption(hr, INTERNET_OPTION_PASSWORD, buffer, &sz);
+    ok(r, "unexpected failure %u\n", GetLastError());
+    ok(!sz, "got %u\n", sz);
+
+    sz = sizeof(buffer);
+    SetLastError(0xdeadbeef);
+    r = InternetQueryOption(hr, INTERNET_OPTION_USERNAME, buffer, &sz);
+    ok(r, "unexpected failure %u\n", GetLastError());
+    ok(!sz, "got %u\n", sz);
+
+    sz = 0;
+    SetLastError(0xdeadbeef);
+    r = InternetQueryOption(hr, INTERNET_OPTION_URL, NULL, &sz);
+    ok(GetLastError() == ERROR_INSUFFICIENT_BUFFER, "got %u\n", GetLastError());
+    ok(!r, "unexpected success\n");
+    ok(sz == 34, "got %u\n", sz);
+
+    sz = sizeof(buffer);
+    SetLastError(0xdeadbeef);
+    r = InternetQueryOption(hr, INTERNET_OPTION_URL, buffer, &sz);
+    ok(r, "unexpected failure %u\n", GetLastError());
+    ok(sz == 33, "got %u\n", sz);
+
     r = HttpSendRequest(hr, NULL, 0, NULL, 0);
     ok(r || broken(!r), "HttpSendRequest failed %u\n", GetLastError());
     if (!r)
@@ -2261,6 +2354,14 @@ static void test_proxy_direct(int port)
 
     r = InternetSetOption(hr, INTERNET_OPTION_PROXY_USERNAME, username, 4);
     ok(r, "failed to set user\n");
+
+    buffer[0] = 0;
+    sz = 3;
+    SetLastError(0xdeadbeef);
+    r = InternetQueryOption(hr, INTERNET_OPTION_PROXY_USERNAME, buffer, &sz);
+    ok(!r, "unexpected failure %u\n", GetLastError());
+    ok(!buffer[0], "got %s\n", buffer);
+    ok(sz == strlen(username) + 1, "got %u\n", sz);
 
     buffer[0] = 0;
     sz = 0;
@@ -3590,6 +3691,20 @@ static const http_status_test_t http_status_tests[] = {
         "\r\nx",
         404,
         "Fail"
+    },
+    {
+        "HTTP/1.1 200\r\n"
+        "Content-Length: 1\r\n"
+        "\r\nx",
+        200,
+        ""
+    },
+    {
+        "HTTP/1.1 410 \r\n"
+        "Content-Length: 1\r\n"
+        "\r\nx",
+        410,
+        ""
     }
 };
 
@@ -3627,6 +3742,50 @@ static void test_http_status(int port)
         InternetCloseHandle(con);
         InternetCloseHandle(ses);
     }
+}
+
+static void test_cache_control_verb(int port)
+{
+    HINTERNET session, connect, request;
+    BOOL ret;
+
+    session = InternetOpen("winetest", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
+    ok(session != NULL, "InternetOpen failed\n");
+
+    connect = InternetConnect(session, "localhost", port, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
+    ok(connect != NULL, "InternetConnect failed\n");
+
+    request = HttpOpenRequest(connect, "RPC_OUT_DATA", "/test_cache_control_verb", NULL, NULL, NULL,
+                              INTERNET_FLAG_NO_CACHE_WRITE, 0);
+    ok(request != NULL, "HttpOpenRequest failed\n");
+    ret = HttpSendRequest(request, NULL, 0, NULL, 0);
+    ok(ret, "HttpSendRequest failed %u\n", GetLastError());
+    test_status_code(request, 200);
+
+    request = HttpOpenRequest(connect, "POST", "/test_cache_control_verb", NULL, NULL, NULL,
+                              INTERNET_FLAG_NO_CACHE_WRITE, 0);
+    ok(request != NULL, "HttpOpenRequest failed\n");
+    ret = HttpSendRequest(request, NULL, 0, NULL, 0);
+    ok(ret, "HttpSendRequest failed %u\n", GetLastError());
+    test_status_code(request, 200);
+
+    request = HttpOpenRequest(connect, "HEAD", "/test_cache_control_verb", NULL, NULL, NULL,
+                              INTERNET_FLAG_NO_CACHE_WRITE, 0);
+    ok(request != NULL, "HttpOpenRequest failed\n");
+    ret = HttpSendRequest(request, NULL, 0, NULL, 0);
+    ok(ret, "HttpSendRequest failed %u\n", GetLastError());
+    test_status_code(request, 200);
+
+    request = HttpOpenRequest(connect, "GET", "/test_cache_control_verb", NULL, NULL, NULL,
+                              INTERNET_FLAG_NO_CACHE_WRITE, 0);
+    ok(request != NULL, "HttpOpenRequest failed\n");
+    ret = HttpSendRequest(request, NULL, 0, NULL, 0);
+    ok(ret, "HttpSendRequest failed %u\n", GetLastError());
+    test_status_code(request, 200);
+
+    InternetCloseHandle(request);
+    InternetCloseHandle(connect);
+    InternetCloseHandle(session);
 }
 
 static void test_http_connection(void)
@@ -3672,6 +3831,7 @@ static void test_http_connection(void)
     test_http_status(si.port);
     test_premature_disconnect(si.port);
     test_connection_closing(si.port);
+    test_cache_control_verb(si.port);
 
     /* send the basic request again to shutdown the server thread */
     test_basic_request(si.port, "GET", "/quit");

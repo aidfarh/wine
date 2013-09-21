@@ -39,7 +39,8 @@ static IDirect3DViewport *Viewport;
 
 static BOOL refdevice = FALSE;
 
-static HRESULT (WINAPI *pDirectDrawCreateEx)(LPGUID,LPVOID*,REFIID,LPUNKNOWN);
+static HRESULT (WINAPI *pDirectDrawCreateEx)(GUID *driver_guid,
+        void **ddraw, REFIID interface_iid, IUnknown *outer);
 
 static BOOL color_match(D3DCOLOR c1, D3DCOLOR c2, BYTE max_diff)
 {
@@ -685,7 +686,7 @@ static void fog_test(IDirect3DDevice7 *device)
         }
 
         color = getPixelColor(device, 160, 360);
-        todo_wine ok(color_match(color, 0x00e51900, 4), "Partially fogged quad has color %08x\n", color);
+        ok(color_match(color, 0x00e51900, 4), "Partially fogged quad has color %08x\n", color);
         color = getPixelColor(device, 160, 120);
         ok(color_match(color, 0x0000ff00, 1), "Fogged out quad has color %08x\n", color);
 

@@ -44,9 +44,7 @@ extern const char* debugstr_cf(CFTypeRef t) DECLSPEC_HIDDEN;
 
 static inline CGRect cgrect_from_rect(RECT rect)
 {
-    if (rect.left >= rect.right || rect.top >= rect.bottom)
-        return CGRectNull;
-    return CGRectMake(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
+    return CGRectMake(rect.left, rect.top, max(0, rect.right - rect.left), max(0, rect.bottom - rect.top));
 }
 
 static inline RECT rect_from_cgrect(CGRect cgrect)
@@ -197,7 +195,8 @@ extern CGImageRef create_cgimage_from_icon_bitmaps(HDC hdc, HANDLE icon, HBITMAP
 extern CGImageRef create_cgimage_from_icon(HANDLE icon, int width, int height) DECLSPEC_HIDDEN;
 extern CFArrayRef create_app_icon_images(void) DECLSPEC_HIDDEN;
 
-extern void macdrv_status_item_clicked(const macdrv_event *event) DECLSPEC_HIDDEN;
+extern void macdrv_status_item_mouse_button(const macdrv_event *event) DECLSPEC_HIDDEN;
+extern void macdrv_status_item_mouse_move(const macdrv_event *event) DECLSPEC_HIDDEN;
 
 
 /**************************************************************************

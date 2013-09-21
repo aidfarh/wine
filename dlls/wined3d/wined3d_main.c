@@ -74,7 +74,6 @@ struct wined3d_settings wined3d_settings =
 {
     TRUE,           /* Use of GLSL enabled by default */
     ORM_FBO,        /* Use FBOs to do offscreen rendering */
-    RTL_READTEX,    /* Default render target locking method */
     PCI_VENDOR_NONE,/* PCI Vendor ID */
     PCI_DEVICE_NONE,/* PCI Device ID */
     0,              /* The default of memory is set in init_driver_info */
@@ -88,7 +87,6 @@ struct wined3d_settings wined3d_settings =
     FALSE,          /* 3D support enabled by default. */
 };
 
-/* Do not call while under the GL lock. */
 struct wined3d * CDECL wined3d_create(UINT version, DWORD flags)
 {
     struct wined3d *object;
@@ -221,19 +219,6 @@ static BOOL wined3d_dll_init(HINSTANCE hInstDLL)
             {
                 TRACE("Using FBOs for offscreen rendering\n");
                 wined3d_settings.offscreen_rendering_mode = ORM_FBO;
-            }
-        }
-        if ( !get_config_key( hkey, appkey, "RenderTargetLockMode", buffer, size) )
-        {
-            if (!strcmp(buffer,"readdraw"))
-            {
-                TRACE("Using glReadPixels for render target reading and glDrawPixels for writing\n");
-                wined3d_settings.rendertargetlock_mode = RTL_READDRAW;
-            }
-            else if (!strcmp(buffer,"readtex"))
-            {
-                TRACE("Using glReadPixels for render target reading and textures for writing\n");
-                wined3d_settings.rendertargetlock_mode = RTL_READTEX;
             }
         }
         if ( !get_config_key_dword( hkey, appkey, "VideoPciDeviceID", &tmpvalue) )

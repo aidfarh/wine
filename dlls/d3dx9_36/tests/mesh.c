@@ -278,7 +278,7 @@ static void compare_mesh(const char *name, ID3DXMesh *d3dxmesh, struct mesh *mes
 
         /* specify offset and size to avoid potential overruns */
         hr = IDirect3DVertexBuffer9_Lock(vertex_buffer, 0, number_of_vertices * sizeof(D3DXVECTOR3) * 2,
-                                         (LPVOID *)&vertices, D3DLOCK_DISCARD);
+                (void **)&vertices, D3DLOCK_DISCARD);
         ok(hr == D3D_OK, "Test %s, result %x, expected 0 (D3D_OK)\n", name, hr);
 
         if (hr != D3D_OK)
@@ -339,7 +339,7 @@ static void compare_mesh(const char *name, ID3DXMesh *d3dxmesh, struct mesh *mes
 
         /* specify offset and size to avoid potential overruns */
         hr = IDirect3DIndexBuffer9_Lock(index_buffer, 0, number_of_faces * sizeof(WORD) * 3,
-                                        (LPVOID *)&faces, D3DLOCK_DISCARD);
+                (void **)&faces, D3DLOCK_DISCARD);
         ok(hr == D3D_OK, "Test %s, result %x, expected 0 (D3D_OK)\n", name, hr);
 
         if (hr != D3D_OK)
@@ -1779,9 +1779,9 @@ static void check_generated_effects_(int line, const D3DXMATERIAL *materials, DW
     }
 }
 
-static LPSTR strdupA(LPCSTR p)
+static char *strdupA(const char *p)
 {
-    LPSTR ret;
+    char *ret;
     if (!p) return NULL;
     ret = HeapAlloc(GetProcessHeap(), 0, strlen(p) + 1);
     if (ret) strcpy(ret, p);
@@ -1798,9 +1798,10 @@ static CALLBACK HRESULT ID3DXAllocateHierarchyImpl_DestroyFrame(ID3DXAllocateHie
     return D3D_OK;
 }
 
-static CALLBACK HRESULT ID3DXAllocateHierarchyImpl_CreateFrame(ID3DXAllocateHierarchy *iface, LPCSTR name, LPD3DXFRAME *new_frame)
+static CALLBACK HRESULT ID3DXAllocateHierarchyImpl_CreateFrame(ID3DXAllocateHierarchy *iface,
+        const char *name, D3DXFRAME **new_frame)
 {
-    LPD3DXFRAME frame;
+    D3DXFRAME *frame;
 
     TRACECALLBACK("ID3DXAllocateHierarchyImpl_CreateFrame(%p, '%s', %p)\n", iface, name, new_frame);
     frame = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*frame));
@@ -3398,7 +3399,8 @@ static HRESULT create_outline(struct glyphinfo *glyph, void *raw_outline, int da
     return S_OK;
 }
 
-static BOOL compute_text_mesh(struct mesh *mesh, HDC hdc, LPCSTR text, FLOAT deviation, FLOAT extrusion, FLOAT otmEMSquare)
+static BOOL compute_text_mesh(struct mesh *mesh, HDC hdc, const char *text,
+        float deviation, float extrusion, float otmEMSquare)
 {
     HRESULT hr = E_FAIL;
     DWORD nb_vertices, nb_faces;
@@ -3685,7 +3687,7 @@ static void compare_text_outline_mesh(const char *name, ID3DXMesh *d3dxmesh, str
 
     /* specify offset and size to avoid potential overruns */
     hr = IDirect3DVertexBuffer9_Lock(vertex_buffer, 0, number_of_vertices * sizeof(D3DXVECTOR3) * 2,
-                                     (LPVOID *)&vertices, D3DLOCK_DISCARD);
+            (void **)&vertices, D3DLOCK_DISCARD);
     ok(hr == D3D_OK, "Test %s, result %x, expected 0 (D3D_OK)\n", name, hr);
     if (hr != D3D_OK)
     {
@@ -3693,7 +3695,7 @@ static void compare_text_outline_mesh(const char *name, ID3DXMesh *d3dxmesh, str
         goto error;
     }
     hr = IDirect3DIndexBuffer9_Lock(index_buffer, 0, number_of_faces * sizeof(WORD) * 3,
-                                    (LPVOID *)&faces, D3DLOCK_DISCARD);
+            (void **)&faces, D3DLOCK_DISCARD);
     ok(hr == D3D_OK, "Test %s, result %x, expected 0 (D3D_OK)\n", name, hr);
     if (hr != D3D_OK)
     {
@@ -3901,7 +3903,7 @@ error:
     if (vertex_buffer) IDirect3DVertexBuffer9_Release(vertex_buffer);
 }
 
-static void test_createtext(IDirect3DDevice9 *device, HDC hdc, LPCSTR text, FLOAT deviation, FLOAT extrusion)
+static void test_createtext(IDirect3DDevice9 *device, HDC hdc, const char *text, float deviation, float extrusion)
 {
     HRESULT hr;
     ID3DXMesh *d3dxmesh;
@@ -4700,10 +4702,11 @@ static void test_create_skin_info(void)
 
     hr = D3DXCreateSkinInfoFVF(1, 0, 1, &skininfo);
     ok(hr == D3D_OK, "Expected D3D_OK, got %#x\n", hr);
-    if (skininfo) {
+    if (skininfo)
+    {
         DWORD dword_result;
-        FLOAT flt_result;
-        LPCSTR string_result;
+        float flt_result;
+        const char *string_result;
         D3DXMATRIX *transform;
         D3DXMATRIX identity_matrix;
 

@@ -1306,10 +1306,12 @@ static inline WORD get_mac_code_page( const FT_SfntName *name )
 static int match_name_table_language( const FT_SfntName *name, LANGID lang )
 {
     LANGID name_lang;
+    int res = 0;
 
     switch (name->platform_id)
     {
     case TT_PLATFORM_MICROSOFT:
+        res += 5;  /* prefer the Microsoft name */
         switch (name->encoding_id)
         {
         case TT_MS_ID_UNICODE_CS:
@@ -1326,6 +1328,7 @@ static int match_name_table_language( const FT_SfntName *name, LANGID lang )
         name_lang = mac_langid_table[name->language_id];
         break;
     case TT_PLATFORM_APPLE_UNICODE:
+        res += 2;  /* prefer Unicode encodings */
         switch (name->encoding_id)
         {
         case TT_APPLE_ID_DEFAULT:
@@ -1341,10 +1344,10 @@ static int match_name_table_language( const FT_SfntName *name, LANGID lang )
     default:
         return 0;
     }
-    if (name_lang == lang) return 3;
-    if (PRIMARYLANGID( name_lang ) == PRIMARYLANGID( lang )) return 2;
-    if (name_lang == MAKELANGID( LANG_ENGLISH, SUBLANG_DEFAULT )) return 1;
-    return 0;
+    if (name_lang == lang) res += 30;
+    else if (PRIMARYLANGID( name_lang ) == PRIMARYLANGID( lang )) res += 20;
+    else if (name_lang == MAKELANGID( LANG_ENGLISH, SUBLANG_DEFAULT )) res += 10;
+    return res;
 }
 
 static WCHAR *copy_name_table_string( const FT_SfntName *name )
@@ -1895,15 +1898,28 @@ static inline DWORD get_ntm_flags( FT_Face ft_face )
     return flags;
 }
 
-static inline int get_bitmap_internal_leading( FT_Face ft_face )
+static inline void get_bitmap_size( FT_Face ft_face, Bitmap_Size *face_size )
 {
-    int internal_leading = 0;
+    My_FT_Bitmap_Size *size;
     FT_WinFNT_HeaderRec winfnt_header;
 
-    if (!pFT_Get_WinFNT_Header( ft_face, &winfnt_header ))
-        internal_leading = winfnt_header.internal_leading;
+    size = (My_FT_Bitmap_Size *)ft_face->available_sizes;
+    TRACE("Adding bitmap size h %d w %d size %ld x_ppem %ld y_ppem %ld\n",
+          size->height, size->width, size->size >> 6,
+          size->x_ppem >> 6, size->y_ppem >> 6);
+    face_size->height = size->height;
+    face_size->width = size->width;
+    face_size->size = size->size;
+    face_size->x_ppem = size->x_ppem;
+    face_size->y_ppem = size->y_ppem;
 
-    return internal_leading;
+    if (!pFT_Get_WinFNT_Header( ft_face, &winfnt_header )) {
+        face_size->internal_leading = winfnt_header.internal_leading;
+        if (winfnt_header.external_leading > 0 &&
+            (face_size->height ==
+             winfnt_header.pixel_height + winfnt_header.external_leading))
+            face_size->height = winfnt_header.pixel_height;
+    }
 }
 
 static inline void get_fontsig( FT_Face ft_face, FONTSIGNATURE *fs )
@@ -1974,7 +1990,6 @@ static Face *create_face( FT_Face ft_face, FT_Long face_index, const char *file,
 {
     struct stat st;
     Face *face = HeapAlloc( GetProcessHeap(), 0, sizeof(*face) );
-    My_FT_Bitmap_Size *size = (My_FT_Bitmap_Size *)ft_face->available_sizes;
 
     face->refcount = 1;
     face->StyleName = get_face_name( ft_face, TT_NAME_ID_FONT_SUBFAMILY, GetSystemDefaultLangID() );
@@ -2016,15 +2031,7 @@ static Face *create_face( FT_Face ft_face, FT_Long face_index, const char *file,
     }
     else
     {
-        TRACE("Adding bitmap size h %d w %d size %ld x_ppem %ld y_ppem %ld\n",
-              size->height, size->width, size->size >> 6,
-              size->x_ppem >> 6, size->y_ppem >> 6);
-        face->size.height = size->height;
-        face->size.width = size->width;
-        face->size.size = size->size;
-        face->size.x_ppem = size->x_ppem;
-        face->size.y_ppem = size->y_ppem;
-        face->size.internal_leading = get_bitmap_internal_leading( ft_face );
+        get_bitmap_size( ft_face, &face->size );
         face->scalable = FALSE;
     }
 
@@ -4505,6 +4512,8 @@ static LONG load_VDMX(GdiFont *font, LONG height)
 
 	TRACE("Ratios[%d] %d  %d : %d -> %d\n", i, ratio.bCharSet, ratio.xRatio, ratio.yStartRatio, ratio.yEndRatio);
 
+        if (!ratio.bCharSet) continue;
+
 	if((ratio.xRatio == 0 &&
 	    ratio.yStartRatio == 0 &&
 	    ratio.yEndRatio == 0) ||
@@ -4519,10 +4528,7 @@ static LONG load_VDMX(GdiFont *font, LONG height)
 	    }
     }
 
-    if(offset == -1) {
-	FIXME("No suitable ratio found\n");
-	return ppem;
-    }
+    if(offset == -1) return 0;
 
     if(get_font_data(font, MS_VDMX_TAG, offset, &group, 4) != GDI_ERROR) {
 	USHORT recs;
@@ -4569,6 +4575,31 @@ static LONG load_VDMX(GdiFont *font, LONG height)
 	    if(!font->yMax) {
 		ppem = 0;
 		TRACE("ppem not found for height %d\n", height);
+	    }
+	} else {
+	    ppem = -height;
+	    if(ppem < startsz || ppem > endsz)
+            {
+                ppem = 0;
+                goto end;
+            }
+
+	    for(i = 0; i < recs; i++) {
+		USHORT yPelHeight;
+		yPelHeight = GET_BE_WORD(vTable[i * 3]);
+
+		if(yPelHeight > ppem)
+                {
+                    ppem = 0;
+                    break; /* failed */
+                }
+
+		if(yPelHeight == ppem) {
+		    font->yMax = GET_BE_WORD(vTable[(i * 3) + 1]);
+		    font->yMin = GET_BE_WORD(vTable[(i * 3) + 2]);
+                    TRACE("ppem %d found; yMax=%d  yMin=%d\n", ppem, font->yMax, font->yMin);
+		    break;
+		}
 	    }
 	}
 	end:
@@ -6121,7 +6152,8 @@ static const struct { WCHAR lower; WCHAR upper;} unrotate_ranges[] =
         {0xA000, 0xABFF},
         /* Hangul Syllables */
         /* Hangul Jamo Extended-B */
-        {0xD800, 0xF8FF},
+        {0xD800, 0xDFFF},
+        /* Private Use Area */
         /* CJK Compatibility Ideographs */
         {0xFB00, 0xFE0F},
         /* Vertical Forms */
@@ -7628,7 +7660,6 @@ static BOOL get_glyph_index_linked(GdiFont *font, UINT c, GdiFont **linked_font,
     }
 
 done:
-    *glyph = get_default_char_index(font);
     *vert = FALSE;
     return FALSE;
 }

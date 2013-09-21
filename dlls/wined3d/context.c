@@ -33,6 +33,8 @@ WINE_DEFAULT_DEBUG_CHANNEL(d3d);
 WINE_DECLARE_DEBUG_CHANNEL(d3d_perf);
 WINE_DECLARE_DEBUG_CHANNEL(d3d_synchronous);
 
+#define WINED3D_MAX_FBO_ENTRIES 64
+
 static DWORD wined3d_context_tls_idx;
 
 /* FBO helper functions */
@@ -885,7 +887,6 @@ err:
     context->valid = 0;
 }
 
-/* Do not call while under the GL lock. */
 static void context_destroy_gl_resources(struct wined3d_context *context)
 {
     const struct wined3d_gl_info *gl_info = context->gl_info;
@@ -1010,7 +1011,6 @@ struct wined3d_context *context_get_current(void)
     return TlsGetValue(wined3d_context_tls_idx);
 }
 
-/* Do not call while under the GL lock. */
 BOOL context_set_current(struct wined3d_context *ctx)
 {
     struct wined3d_context *old = context_get_current();
@@ -1295,7 +1295,6 @@ static void WINE_GLAPI wined3d_debug_callback(GLenum source, GLenum type, GLuint
     }
 }
 
-/* Do not call while under the GL lock. */
 struct wined3d_context *context_create(struct wined3d_swapchain *swapchain,
         struct wined3d_surface *target, const struct wined3d_format *ds_format)
 {
@@ -1344,6 +1343,12 @@ struct wined3d_context *context_create(struct wined3d_swapchain *swapchain,
     list_init(&ret->event_queries);
     list_init(&ret->fbo_list);
     list_init(&ret->fbo_destroy_list);
+
+    if (!device->shader_backend->shader_allocate_context_data(ret))
+    {
+        ERR("Failed to allocate shader backend context data.\n");
+        goto out;
+    }
 
     if (!(hdc = GetDC(swapchain->win_handle)))
     {
@@ -1564,13 +1569,6 @@ struct wined3d_context *context_create(struct wined3d_swapchain *swapchain,
     gl_info->gl_ops.gl.p_glPixelStorei(GL_UNPACK_ALIGNMENT, device->surface_alignment);
     checkGLcall("glPixelStorei(GL_UNPACK_ALIGNMENT, device->surface_alignment);");
 
-    if (gl_info->supported[APPLE_CLIENT_STORAGE])
-    {
-        /* Most textures will use client storage if supported. Exceptions are
-         * non-native power of 2 textures and textures in DIB sections. */
-        gl_info->gl_ops.gl.p_glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE);
-        checkGLcall("glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE)");
-    }
     if (gl_info->supported[ARB_VERTEX_BLEND])
     {
         /* Direct3D always uses n-1 weights for n world matrices and uses
@@ -1631,7 +1629,9 @@ struct wined3d_context *context_create(struct wined3d_swapchain *swapchain,
     {
         GL_EXTCALL(glProvokingVertexEXT(GL_FIRST_VERTEX_CONVENTION_EXT));
     }
-    ret->select_shader = 1;
+    ret->shader_update_mask = (1 << WINED3D_SHADER_TYPE_PIXEL)
+            | (1 << WINED3D_SHADER_TYPE_VERTEX)
+            | (1 << WINED3D_SHADER_TYPE_GEOMETRY);
 
     /* If this happens to be the first context for the device, dummy textures
      * are not created yet. In that case, they will be created (and bound) by
@@ -1644,6 +1644,7 @@ struct wined3d_context *context_create(struct wined3d_swapchain *swapchain,
     return ret;
 
 out:
+    device->shader_backend->shader_free_context_data(ret);
     HeapFree(GetProcessHeap(), 0, ret->free_event_queries);
     HeapFree(GetProcessHeap(), 0, ret->free_occlusion_queries);
     HeapFree(GetProcessHeap(), 0, ret->draw_buffers);
@@ -1652,7 +1653,6 @@ out:
     return NULL;
 }
 
-/* Do not call while under the GL lock. */
 void context_destroy(struct wined3d_device *device, struct wined3d_context *context)
 {
     BOOL destroy;
@@ -1676,6 +1676,7 @@ void context_destroy(struct wined3d_device *device, struct wined3d_context *cont
         destroy = FALSE;
     }
 
+    device->shader_backend->shader_free_context_data(context);
     HeapFree(GetProcessHeap(), 0, context->draw_buffers);
     HeapFree(GetProcessHeap(), 0, context->blit_targets);
     device_context_remove(device, context);
@@ -1908,8 +1909,6 @@ static void SetupForBlit(const struct wined3d_device *device, struct wined3d_con
 
     /* Disable shaders */
     device->shader_backend->shader_disable(device->shader_priv, context);
-    context->select_shader = 1;
-    context->load_constants = 1;
 
     context->blit_w = rt_size.cx;
     context->blit_h = rt_size.cy;
@@ -2275,7 +2274,7 @@ BOOL context_apply_clear_state(struct wined3d_context *context, const struct win
 
 static DWORD find_draw_buffers_mask(const struct wined3d_context *context, const struct wined3d_device *device)
 {
-    const struct wined3d_state *state = &device->stateBlock->state;
+    const struct wined3d_state *state = &device->state;
     struct wined3d_surface **rts = state->fb->render_targets;
     struct wined3d_shader *ps = state->pixel_shader;
     DWORD rt_mask, rt_mask_bits;
@@ -2346,10 +2345,221 @@ void context_state_drawbuf(struct wined3d_context *context, const struct wined3d
     }
 }
 
+static BOOL fixed_get_input(BYTE usage, BYTE usage_idx, unsigned int *regnum)
+{
+    if ((usage == WINED3D_DECL_USAGE_POSITION || usage == WINED3D_DECL_USAGE_POSITIONT) && !usage_idx)
+        *regnum = WINED3D_FFP_POSITION;
+    else if (usage == WINED3D_DECL_USAGE_BLEND_WEIGHT && !usage_idx)
+        *regnum = WINED3D_FFP_BLENDWEIGHT;
+    else if (usage == WINED3D_DECL_USAGE_BLEND_INDICES && !usage_idx)
+        *regnum = WINED3D_FFP_BLENDINDICES;
+    else if (usage == WINED3D_DECL_USAGE_NORMAL && !usage_idx)
+        *regnum = WINED3D_FFP_NORMAL;
+    else if (usage == WINED3D_DECL_USAGE_PSIZE && !usage_idx)
+        *regnum = WINED3D_FFP_PSIZE;
+    else if (usage == WINED3D_DECL_USAGE_COLOR && !usage_idx)
+        *regnum = WINED3D_FFP_DIFFUSE;
+    else if (usage == WINED3D_DECL_USAGE_COLOR && usage_idx == 1)
+        *regnum = WINED3D_FFP_SPECULAR;
+    else if (usage == WINED3D_DECL_USAGE_TEXCOORD && usage_idx < WINED3DDP_MAXTEXCOORD)
+        *regnum = WINED3D_FFP_TEXCOORD0 + usage_idx;
+    else
+    {
+        FIXME("Unsupported input stream [usage=%s, usage_idx=%u].\n", debug_d3ddeclusage(usage), usage_idx);
+        *regnum = ~0U;
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+/* FIXME: Separate buffer loading from declaration decoding */
+/* Context activation is done by the caller. */
+void context_stream_info_from_declaration(struct wined3d_context *context,
+        const struct wined3d_state *state, struct wined3d_stream_info *stream_info)
+{
+    /* We need to deal with frequency data! */
+    struct wined3d_vertex_declaration *declaration = state->vertex_declaration;
+    BOOL use_vshader;
+    unsigned int i;
+    WORD map;
+
+    stream_info->use_map = 0;
+    stream_info->swizzle_map = 0;
+    stream_info->all_vbo = 1;
+
+    /* Check for transformed vertices, disable vertex shader if present. */
+    stream_info->position_transformed = declaration->position_transformed;
+    use_vshader = state->vertex_shader && !declaration->position_transformed;
+
+    /* Translate the declaration into strided data. */
+    for (i = 0; i < declaration->element_count; ++i)
+    {
+        const struct wined3d_vertex_declaration_element *element = &declaration->elements[i];
+        const struct wined3d_stream_state *stream = &state->streams[element->input_slot];
+        struct wined3d_buffer *buffer = stream->buffer;
+        struct wined3d_bo_address data;
+        BOOL stride_used;
+        unsigned int idx;
+        DWORD stride;
+
+        TRACE("%p Element %p (%u of %u).\n", declaration->elements,
+                element, i + 1, declaration->element_count);
+
+        if (!buffer) continue;
+
+        stride = stream->stride;
+        TRACE("Stream %u in buffer %p.\n", element->input_slot, buffer);
+        buffer_get_memory(buffer, context, &data);
+
+        /* Can't use vbo's if the base vertex index is negative. OpenGL doesn't accept negative offsets
+         * (or rather offsets bigger than the vbo, because the pointer is unsigned), so use system memory
+         * sources. In most sane cases the pointer - offset will still be > 0, otherwise it will wrap
+         * around to some big value. Hope that with the indices, the driver wraps it back internally. If
+         * not, drawStridedSlow is needed, including a vertex buffer path. */
+        if (state->load_base_vertex_index < 0)
+        {
+            WARN_(d3d_perf)("load_base_vertex_index is < 0 (%d), not using VBOs.\n",
+                    state->load_base_vertex_index);
+            data.buffer_object = 0;
+            data.addr = buffer_get_sysmem(buffer, context);
+            if ((UINT_PTR)data.addr < -state->load_base_vertex_index * stride)
+            {
+                FIXME("System memory vertex data load offset is negative!\n");
+            }
+        }
+        data.addr += element->offset;
+
+        TRACE("offset %u input_slot %u usage_idx %d.\n", element->offset, element->input_slot, element->usage_idx);
+
+        if (use_vshader)
+        {
+            if (element->output_slot == ~0U)
+            {
+                /* TODO: Assuming vertexdeclarations are usually used with the
+                 * same or a similar shader, it might be worth it to store the
+                 * last used output slot and try that one first. */
+                stride_used = vshader_get_input(state->vertex_shader,
+                        element->usage, element->usage_idx, &idx);
+            }
+            else
+            {
+                idx = element->output_slot;
+                stride_used = TRUE;
+            }
+        }
+        else
+        {
+            if (!element->ffp_valid)
+            {
+                WARN("Skipping unsupported fixed function element of format %s and usage %s.\n",
+                        debug_d3dformat(element->format->id), debug_d3ddeclusage(element->usage));
+                stride_used = FALSE;
+            }
+            else
+            {
+                stride_used = fixed_get_input(element->usage, element->usage_idx, &idx);
+            }
+        }
+
+        if (stride_used)
+        {
+            TRACE("Load %s array %u [usage %s, usage_idx %u, "
+                    "input_slot %u, offset %u, stride %u, format %s, buffer_object %u].\n",
+                    use_vshader ? "shader": "fixed function", idx,
+                    debug_d3ddeclusage(element->usage), element->usage_idx, element->input_slot,
+                    element->offset, stride, debug_d3dformat(element->format->id), data.buffer_object);
+
+            data.addr += stream->offset;
+
+            stream_info->elements[idx].format = element->format;
+            stream_info->elements[idx].data = data;
+            stream_info->elements[idx].stride = stride;
+            stream_info->elements[idx].stream_idx = element->input_slot;
+
+            if (!context->gl_info->supported[ARB_VERTEX_ARRAY_BGRA]
+                    && element->format->id == WINED3DFMT_B8G8R8A8_UNORM)
+            {
+                stream_info->swizzle_map |= 1 << idx;
+            }
+            stream_info->use_map |= 1 << idx;
+        }
+    }
+
+    /* Preload the vertex buffers. */
+    context->num_buffer_queries = 0;
+    for (i = 0, map = stream_info->use_map; map; map >>= 1, ++i)
+    {
+        struct wined3d_stream_info_element *element;
+        struct wined3d_buffer *buffer;
+
+        if (!(map & 1))
+            continue;
+
+        element = &stream_info->elements[i];
+        buffer = state->streams[element->stream_idx].buffer;
+        buffer_internal_preload(buffer, context, state);
+
+        /* If the preload dropped the buffer object, update the stream info. */
+        if (buffer->buffer_object != element->data.buffer_object)
+        {
+            element->data.buffer_object = 0;
+            element->data.addr = buffer_get_sysmem(buffer, context)
+                    + (ptrdiff_t)element->data.addr;
+        }
+
+        if (!buffer->buffer_object)
+            stream_info->all_vbo = 0;
+
+        if (buffer->query)
+            context->buffer_queries[context->num_buffer_queries++] = buffer->query;
+    }
+}
+
+/* Context activation is done by the caller. */
+static void context_update_stream_info(struct wined3d_context *context, const struct wined3d_state *state)
+{
+    const struct wined3d_gl_info *gl_info = context->gl_info;
+    const struct wined3d_d3d_info *d3d_info = context->d3d_info;
+    struct wined3d_stream_info *stream_info = &context->stream_info;
+    DWORD prev_all_vbo = stream_info->all_vbo;
+
+    TRACE("============================= Vertex Declaration =============================\n");
+    context_stream_info_from_declaration(context, state, stream_info);
+
+    if (state->vertex_shader && !stream_info->position_transformed)
+    {
+        if (state->vertex_declaration->half_float_conv_needed && !stream_info->all_vbo)
+        {
+            TRACE("Using drawStridedSlow with vertex shaders for FLOAT16 conversion.\n");
+            context->use_immediate_mode_draw = TRUE;
+        }
+        else
+        {
+            context->use_immediate_mode_draw = FALSE;
+        }
+    }
+    else
+    {
+        WORD slow_mask = (1 << WINED3D_FFP_PSIZE);
+        slow_mask |= -!gl_info->supported[ARB_VERTEX_ARRAY_BGRA]
+                & ((1 << WINED3D_FFP_DIFFUSE) | (1 << WINED3D_FFP_SPECULAR));
+
+        if (((stream_info->position_transformed && !d3d_info->xyzrhw)
+                || (stream_info->use_map & slow_mask)) && !stream_info->all_vbo)
+            context->use_immediate_mode_draw = TRUE;
+        else
+            context->use_immediate_mode_draw = FALSE;
+    }
+
+    if (prev_all_vbo != stream_info->all_vbo)
+        context_invalidate_state(context, STATE_INDEXBUFFER);
+}
+
 /* Context activation is done by the caller. */
 BOOL context_apply_draw_state(struct wined3d_context *context, struct wined3d_device *device)
 {
-    const struct wined3d_state *state = &device->stateBlock->state;
+    const struct wined3d_state *state = &device->state;
     const struct StateEntry *state_table = context->state_table;
     const struct wined3d_fb_state *fb = state->fb;
     unsigned int i;
@@ -2369,13 +2579,13 @@ BOOL context_apply_draw_state(struct wined3d_context *context, struct wined3d_de
     device_update_tex_unit_map(device);
     device_preload_textures(device);
     if (isStateDirty(context, STATE_VDECL) || isStateDirty(context, STATE_STREAMSRC))
-        device_update_stream_info(device, context->gl_info);
+        context_update_stream_info(context, state);
     if (state->index_buffer)
     {
-        if (device->stream_info.all_vbo)
-            wined3d_buffer_preload(state->index_buffer);
+        if (context->stream_info.all_vbo)
+            buffer_internal_preload(state->index_buffer, context, state);
         else
-            buffer_get_sysmem(state->index_buffer, context->gl_info);
+            buffer_get_sysmem(state->index_buffer, context);
     }
 
     for (i = 0; i < context->numDirtyEntries; ++i)
@@ -2387,17 +2597,16 @@ BOOL context_apply_draw_state(struct wined3d_context *context, struct wined3d_de
         state_table[rep].apply(context, state, rep);
     }
 
-    if (context->select_shader)
+    if (context->shader_update_mask)
     {
         device->shader_backend->shader_select(device->shader_priv, context, state);
-        context->select_shader = 0;
+        context->shader_update_mask = 0;
     }
 
-    if (context->load_constants)
+    if (context->constant_update_mask)
     {
-        device->shader_backend->shader_load_constants(device->shader_priv,
-                context, state);
-        context->load_constants = 0;
+        device->shader_backend->shader_load_constants(device->shader_priv, context, state);
+        context->constant_update_mask = 0;
     }
 
     if (wined3d_settings.offscreen_rendering_mode == ORM_FBO)
@@ -2455,7 +2664,7 @@ static void context_setup_target(struct wined3d_context *context, struct wined3d
             if (context->current_rt->texture_name_srgb)
                 surface_internal_preload(context->current_rt, SRGB_SRGB);
             surface_internal_preload(context->current_rt, SRGB_RGB);
-            surface_modify_location(context->current_rt, SFLAG_INDRAWABLE, FALSE);
+            surface_invalidate_location(context->current_rt, SFLAG_INDRAWABLE);
         }
     }
 
@@ -2463,7 +2672,6 @@ static void context_setup_target(struct wined3d_context *context, struct wined3d
     context_set_render_offscreen(context, render_offscreen);
 }
 
-/* Do not call while under the GL lock. */
 struct wined3d_context *context_acquire(const struct wined3d_device *device, struct wined3d_surface *target)
 {
     struct wined3d_context *current_context = context_get_current();

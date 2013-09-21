@@ -778,21 +778,29 @@ static HRESULT ddraw_set_cooperative_level(struct ddraw *ddraw, HWND window,
 
     wined3d_mutex_lock();
 
+    if (ddraw->flags & DDRAW_SCL_RECURSIVE)
+    {
+        WARN("Recursive call, returning DD_OK.\n");
+        hr = DD_OK;
+        goto done;
+    }
+    ddraw->flags |= DDRAW_SCL_RECURSIVE;
+
     /* Tests suggest that we need one of them: */
     if(!(cooplevel & (DDSCL_SETFOCUSWINDOW |
                       DDSCL_NORMAL         |
                       DDSCL_EXCLUSIVE      )))
     {
         TRACE("Incorrect cooplevel flags, returning DDERR_INVALIDPARAMS\n");
-        wined3d_mutex_unlock();
-        return DDERR_INVALIDPARAMS;
+        hr = DDERR_INVALIDPARAMS;
+        goto done;
     }
 
     if ((cooplevel & DDSCL_CREATEDEVICEWINDOW) && !(cooplevel & DDSCL_EXCLUSIVE))
     {
         WARN("DDSCL_CREATEDEVICEWINDOW requires DDSCL_EXCLUSIVE.\n");
-        wined3d_mutex_unlock();
-        return DDERR_INVALIDPARAMS;
+        hr = DDERR_INVALIDPARAMS;
+        goto done;
     }
 
     /* Handle those levels first which set various hwnds */
@@ -810,13 +818,12 @@ static HRESULT ddraw_set_cooperative_level(struct ddraw *ddraw, HWND window,
                 | DDSCL_FULLSCREEN))
         {
             WARN("Called with incompatible flags, returning DDERR_INVALIDPARAMS.\n");
-            wined3d_mutex_unlock();
-            return DDERR_INVALIDPARAMS;
+            hr = DDERR_INVALIDPARAMS;
+            goto done;
         }
 
         hr = ddraw_set_focus_window(ddraw, window);
-        wined3d_mutex_unlock();
-        return hr;
+        goto done;
     }
 
     if (cooplevel & DDSCL_EXCLUSIVE)
@@ -824,8 +831,8 @@ static HRESULT ddraw_set_cooperative_level(struct ddraw *ddraw, HWND window,
         if (!(cooplevel & DDSCL_FULLSCREEN) || !(window || (cooplevel & DDSCL_CREATEDEVICEWINDOW)))
         {
             WARN("DDSCL_EXCLUSIVE requires DDSCL_FULLSCREEN and a window.\n");
-            wined3d_mutex_unlock();
-            return DDERR_INVALIDPARAMS;
+            hr = DDERR_INVALIDPARAMS;
+            goto done;
         }
 
         if (cooplevel & DDSCL_CREATEDEVICEWINDOW)
@@ -835,8 +842,8 @@ static HRESULT ddraw_set_cooperative_level(struct ddraw *ddraw, HWND window,
             if (!ddraw->focuswindow && !(cooplevel & DDSCL_SETFOCUSWINDOW))
             {
                 WARN("No focus window set.\n");
-                wined3d_mutex_unlock();
-                return DDERR_NOFOCUSWINDOW;
+                hr = DDERR_NOFOCUSWINDOW;
+                goto done;
             }
 
             device_window = CreateWindowExA(0, DDRAW_WINDOW_CLASS_NAME, "DirectDrawDeviceWnd",
@@ -845,8 +852,8 @@ static HRESULT ddraw_set_cooperative_level(struct ddraw *ddraw, HWND window,
             if (!device_window)
             {
                 ERR("Failed to create window, last error %#x.\n", GetLastError());
-                wined3d_mutex_unlock();
-                return E_FAIL;
+                hr = E_FAIL;
+                goto done;
             }
 
             ShowWindow(device_window, SW_SHOW);
@@ -861,15 +868,12 @@ static HRESULT ddraw_set_cooperative_level(struct ddraw *ddraw, HWND window,
             {
                 if (!window)
                 {
-                    wined3d_mutex_unlock();
-                    return DDERR_NOHWND;
+                    hr = DDERR_NOHWND;
+                    goto done;
                 }
 
                 if (FAILED(hr = ddraw_set_focus_window(ddraw, window)))
-                {
-                    wined3d_mutex_unlock();
-                    return hr;
-                }
+                    goto done;
             }
 
             window = device_window;
@@ -910,8 +914,7 @@ static HRESULT ddraw_set_cooperative_level(struct ddraw *ddraw, HWND window,
             if (FAILED(hr = wined3d_stateblock_create(ddraw->wined3d_device, WINED3D_SBT_ALL, &stateblock)))
             {
                 ERR("Failed to create stateblock, hr %#x.\n", hr);
-                wined3d_mutex_unlock();
-                return hr;
+                goto done;
             }
 
             wined3d_stateblock_capture(stateblock);
@@ -968,8 +971,7 @@ static HRESULT ddraw_set_cooperative_level(struct ddraw *ddraw, HWND window,
         if (FAILED(hr))
         {
             ERR("Failed to acquire focus window, hr %#x.\n", hr);
-            wined3d_mutex_unlock();
-            return hr;
+            goto done;
         }
     }
 
@@ -991,9 +993,12 @@ static HRESULT ddraw_set_cooperative_level(struct ddraw *ddraw, HWND window,
     ddraw->dest_window = window;
 
     TRACE("SetCooperativeLevel retuning DD_OK\n");
+    hr = DD_OK;
+done:
+    ddraw->flags &= ~DDRAW_SCL_RECURSIVE;
     wined3d_mutex_unlock();
 
-    return DD_OK;
+    return hr;
 }
 
 static HRESULT WINAPI ddraw7_SetCooperativeLevel(IDirectDraw7 *iface, HWND window, DWORD flags)
@@ -1160,6 +1165,269 @@ static HRESULT WINAPI ddraw1_SetDisplayMode(IDirectDraw *iface, DWORD width, DWO
     return ddraw7_SetDisplayMode(&ddraw->IDirectDraw7_iface, width, height, bpp, 0, 0);
 }
 
+void ddraw_d3dcaps1_from_7(D3DDEVICEDESC *caps1, D3DDEVICEDESC7 *caps7)
+{
+    memset(caps1, 0, sizeof(*caps1));
+    caps1->dwSize = sizeof(*caps1);
+    caps1->dwFlags = D3DDD_COLORMODEL
+            | D3DDD_DEVCAPS
+            | D3DDD_TRANSFORMCAPS
+            | D3DDD_BCLIPPING
+            | D3DDD_LIGHTINGCAPS
+            | D3DDD_LINECAPS
+            | D3DDD_TRICAPS
+            | D3DDD_DEVICERENDERBITDEPTH
+            | D3DDD_DEVICEZBUFFERBITDEPTH
+            | D3DDD_MAXBUFFERSIZE
+            | D3DDD_MAXVERTEXCOUNT;
+    caps1->dcmColorModel = D3DCOLOR_RGB;
+    caps1->dwDevCaps = caps7->dwDevCaps;
+    caps1->dtcTransformCaps.dwSize = sizeof(caps1->dtcTransformCaps);
+    caps1->dtcTransformCaps.dwCaps = D3DTRANSFORMCAPS_CLIP;
+    caps1->bClipping = TRUE;
+    caps1->dlcLightingCaps.dwSize = sizeof(caps1->dlcLightingCaps);
+    caps1->dlcLightingCaps.dwCaps = D3DLIGHTCAPS_DIRECTIONAL
+            | D3DLIGHTCAPS_PARALLELPOINT
+            | D3DLIGHTCAPS_POINT
+            | D3DLIGHTCAPS_SPOT;
+    caps1->dlcLightingCaps.dwLightingModel = D3DLIGHTINGMODEL_RGB;
+    caps1->dlcLightingCaps.dwNumLights = caps7->dwMaxActiveLights;
+    caps1->dpcLineCaps = caps7->dpcLineCaps;
+    caps1->dpcTriCaps = caps7->dpcTriCaps;
+    caps1->dwDeviceRenderBitDepth = caps7->dwDeviceRenderBitDepth;
+    caps1->dwDeviceZBufferBitDepth = caps7->dwDeviceZBufferBitDepth;
+    caps1->dwMaxBufferSize = 0;
+    caps1->dwMaxVertexCount = 65536;
+    caps1->dwMinTextureWidth  = caps7->dwMinTextureWidth;
+    caps1->dwMinTextureHeight = caps7->dwMinTextureHeight;
+    caps1->dwMaxTextureWidth  = caps7->dwMaxTextureWidth;
+    caps1->dwMaxTextureHeight = caps7->dwMaxTextureHeight;
+    caps1->dwMinStippleWidth  = 1;
+    caps1->dwMinStippleHeight = 1;
+    caps1->dwMaxStippleWidth  = 32;
+    caps1->dwMaxStippleHeight = 32;
+    caps1->dwMaxTextureRepeat = caps7->dwMaxTextureRepeat;
+    caps1->dwMaxTextureAspectRatio = caps7->dwMaxTextureAspectRatio;
+    caps1->dwMaxAnisotropy = caps7->dwMaxAnisotropy;
+    caps1->dvGuardBandLeft = caps7->dvGuardBandLeft;
+    caps1->dvGuardBandTop = caps7->dvGuardBandTop;
+    caps1->dvGuardBandRight = caps7->dvGuardBandRight;
+    caps1->dvGuardBandBottom = caps7->dvGuardBandBottom;
+    caps1->dvExtentsAdjust = caps7->dvExtentsAdjust;
+    caps1->dwStencilCaps = caps7->dwStencilCaps;
+    caps1->dwFVFCaps = caps7->dwFVFCaps;
+    caps1->dwTextureOpCaps = caps7->dwTextureOpCaps;
+    caps1->wMaxTextureBlendStages = caps7->wMaxTextureBlendStages;
+    caps1->wMaxSimultaneousTextures = caps7->wMaxSimultaneousTextures;
+}
+
+HRESULT ddraw_get_d3dcaps(const struct ddraw *ddraw, D3DDEVICEDESC7 *caps)
+{
+    WINED3DCAPS wined3d_caps;
+    HRESULT hr;
+
+    TRACE("ddraw %p, caps %p.\n", ddraw, caps);
+
+    memset(&wined3d_caps, 0, sizeof(wined3d_caps));
+
+    wined3d_mutex_lock();
+    hr = wined3d_get_device_caps(ddraw->wined3d, 0, WINED3D_DEVICE_TYPE_HAL, &wined3d_caps);
+    wined3d_mutex_unlock();
+    if (FAILED(hr))
+    {
+        WARN("Failed to get device caps, hr %#x.\n", hr);
+        return hr;
+    }
+
+    caps->dwDevCaps = wined3d_caps.DevCaps;
+    caps->dpcLineCaps.dwMiscCaps = wined3d_caps.PrimitiveMiscCaps;
+    caps->dpcLineCaps.dwRasterCaps = wined3d_caps.RasterCaps;
+    caps->dpcLineCaps.dwZCmpCaps = wined3d_caps.ZCmpCaps;
+    caps->dpcLineCaps.dwSrcBlendCaps = wined3d_caps.SrcBlendCaps;
+    caps->dpcLineCaps.dwDestBlendCaps = wined3d_caps.DestBlendCaps;
+    caps->dpcLineCaps.dwAlphaCmpCaps = wined3d_caps.AlphaCmpCaps;
+    caps->dpcLineCaps.dwShadeCaps = wined3d_caps.ShadeCaps;
+    caps->dpcLineCaps.dwTextureCaps = wined3d_caps.TextureCaps;
+    caps->dpcLineCaps.dwTextureFilterCaps = wined3d_caps.TextureFilterCaps;
+    caps->dpcLineCaps.dwTextureAddressCaps = wined3d_caps.TextureAddressCaps;
+
+    caps->dwMaxTextureWidth = wined3d_caps.MaxTextureWidth;
+    caps->dwMaxTextureHeight = wined3d_caps.MaxTextureHeight;
+
+    caps->dwMaxTextureRepeat = wined3d_caps.MaxTextureRepeat;
+    caps->dwMaxTextureAspectRatio = wined3d_caps.MaxTextureAspectRatio;
+    caps->dwMaxAnisotropy = wined3d_caps.MaxAnisotropy;
+    caps->dvMaxVertexW = wined3d_caps.MaxVertexW;
+
+    caps->dvGuardBandLeft = wined3d_caps.GuardBandLeft;
+    caps->dvGuardBandTop = wined3d_caps.GuardBandTop;
+    caps->dvGuardBandRight = wined3d_caps.GuardBandRight;
+    caps->dvGuardBandBottom = wined3d_caps.GuardBandBottom;
+
+    caps->dvExtentsAdjust = wined3d_caps.ExtentsAdjust;
+    caps->dwStencilCaps = wined3d_caps.StencilCaps;
+
+    caps->dwFVFCaps = wined3d_caps.FVFCaps;
+    caps->dwTextureOpCaps = wined3d_caps.TextureOpCaps;
+
+    caps->dwVertexProcessingCaps = wined3d_caps.VertexProcessingCaps;
+    caps->dwMaxActiveLights = wined3d_caps.MaxActiveLights;
+
+    /* Remove all non-d3d7 caps */
+    caps->dwDevCaps &= (
+        D3DDEVCAPS_FLOATTLVERTEX         | D3DDEVCAPS_SORTINCREASINGZ          | D3DDEVCAPS_SORTDECREASINGZ          |
+        D3DDEVCAPS_SORTEXACT             | D3DDEVCAPS_EXECUTESYSTEMMEMORY      | D3DDEVCAPS_EXECUTEVIDEOMEMORY       |
+        D3DDEVCAPS_TLVERTEXSYSTEMMEMORY  | D3DDEVCAPS_TLVERTEXVIDEOMEMORY      | D3DDEVCAPS_TEXTURESYSTEMMEMORY      |
+        D3DDEVCAPS_TEXTUREVIDEOMEMORY    | D3DDEVCAPS_DRAWPRIMTLVERTEX         | D3DDEVCAPS_CANRENDERAFTERFLIP       |
+        D3DDEVCAPS_TEXTURENONLOCALVIDMEM | D3DDEVCAPS_DRAWPRIMITIVES2          | D3DDEVCAPS_SEPARATETEXTUREMEMORIES  |
+        D3DDEVCAPS_DRAWPRIMITIVES2EX     | D3DDEVCAPS_HWTRANSFORMANDLIGHT      | D3DDEVCAPS_CANBLTSYSTONONLOCAL      |
+        D3DDEVCAPS_HWRASTERIZATION);
+
+    caps->dwStencilCaps &= (
+        D3DSTENCILCAPS_KEEP              | D3DSTENCILCAPS_ZERO                 | D3DSTENCILCAPS_REPLACE              |
+        D3DSTENCILCAPS_INCRSAT           | D3DSTENCILCAPS_DECRSAT              | D3DSTENCILCAPS_INVERT               |
+        D3DSTENCILCAPS_INCR              | D3DSTENCILCAPS_DECR);
+
+    /* FVF caps ?*/
+
+    caps->dwTextureOpCaps &= (
+        D3DTEXOPCAPS_DISABLE             | D3DTEXOPCAPS_SELECTARG1             | D3DTEXOPCAPS_SELECTARG2             |
+        D3DTEXOPCAPS_MODULATE            | D3DTEXOPCAPS_MODULATE2X             | D3DTEXOPCAPS_MODULATE4X             |
+        D3DTEXOPCAPS_ADD                 | D3DTEXOPCAPS_ADDSIGNED              | D3DTEXOPCAPS_ADDSIGNED2X            |
+        D3DTEXOPCAPS_SUBTRACT            | D3DTEXOPCAPS_ADDSMOOTH              | D3DTEXOPCAPS_BLENDTEXTUREALPHA      |
+        D3DTEXOPCAPS_BLENDFACTORALPHA    | D3DTEXOPCAPS_BLENDTEXTUREALPHAPM    | D3DTEXOPCAPS_BLENDCURRENTALPHA      |
+        D3DTEXOPCAPS_PREMODULATE         | D3DTEXOPCAPS_MODULATEALPHA_ADDCOLOR | D3DTEXOPCAPS_MODULATECOLOR_ADDALPHA |
+        D3DTEXOPCAPS_MODULATEINVALPHA_ADDCOLOR | D3DTEXOPCAPS_MODULATEINVCOLOR_ADDALPHA | D3DTEXOPCAPS_BUMPENVMAP    |
+        D3DTEXOPCAPS_BUMPENVMAPLUMINANCE | D3DTEXOPCAPS_DOTPRODUCT3);
+
+    caps->dwVertexProcessingCaps &= (
+        D3DVTXPCAPS_TEXGEN               | D3DVTXPCAPS_MATERIALSOURCE7         | D3DVTXPCAPS_VERTEXFOG               |
+        D3DVTXPCAPS_DIRECTIONALLIGHTS    | D3DVTXPCAPS_POSITIONALLIGHTS        | D3DVTXPCAPS_LOCALVIEWER);
+
+    caps->dpcLineCaps.dwMiscCaps &= (
+        D3DPMISCCAPS_MASKPLANES          | D3DPMISCCAPS_MASKZ                  | D3DPMISCCAPS_LINEPATTERNREP         |
+        D3DPMISCCAPS_CONFORMANT          | D3DPMISCCAPS_CULLNONE               | D3DPMISCCAPS_CULLCW                 |
+        D3DPMISCCAPS_CULLCCW);
+
+    caps->dpcLineCaps.dwRasterCaps &= (
+        D3DPRASTERCAPS_DITHER            | D3DPRASTERCAPS_ROP2                 | D3DPRASTERCAPS_XOR                  |
+        D3DPRASTERCAPS_PAT               | D3DPRASTERCAPS_ZTEST                | D3DPRASTERCAPS_SUBPIXEL             |
+        D3DPRASTERCAPS_SUBPIXELX         | D3DPRASTERCAPS_FOGVERTEX            | D3DPRASTERCAPS_FOGTABLE             |
+        D3DPRASTERCAPS_STIPPLE           | D3DPRASTERCAPS_ANTIALIASSORTDEPENDENT | D3DPRASTERCAPS_ANTIALIASSORTINDEPENDENT |
+        D3DPRASTERCAPS_ANTIALIASEDGES    | D3DPRASTERCAPS_MIPMAPLODBIAS        | D3DPRASTERCAPS_ZBIAS                |
+        D3DPRASTERCAPS_ZBUFFERLESSHSR    | D3DPRASTERCAPS_FOGRANGE             | D3DPRASTERCAPS_ANISOTROPY           |
+        D3DPRASTERCAPS_WBUFFER           | D3DPRASTERCAPS_TRANSLUCENTSORTINDEPENDENT | D3DPRASTERCAPS_WFOG           |
+        D3DPRASTERCAPS_ZFOG);
+
+    caps->dpcLineCaps.dwZCmpCaps &= (
+        D3DPCMPCAPS_NEVER                | D3DPCMPCAPS_LESS                    | D3DPCMPCAPS_EQUAL                   |
+        D3DPCMPCAPS_LESSEQUAL            | D3DPCMPCAPS_GREATER                 | D3DPCMPCAPS_NOTEQUAL                |
+        D3DPCMPCAPS_GREATEREQUAL         | D3DPCMPCAPS_ALWAYS);
+
+    caps->dpcLineCaps.dwSrcBlendCaps &= (
+        D3DPBLENDCAPS_ZERO               | D3DPBLENDCAPS_ONE                   | D3DPBLENDCAPS_SRCCOLOR              |
+        D3DPBLENDCAPS_INVSRCCOLOR        | D3DPBLENDCAPS_SRCALPHA              | D3DPBLENDCAPS_INVSRCALPHA           |
+        D3DPBLENDCAPS_DESTALPHA          | D3DPBLENDCAPS_INVDESTALPHA          | D3DPBLENDCAPS_DESTCOLOR             |
+        D3DPBLENDCAPS_INVDESTCOLOR       | D3DPBLENDCAPS_SRCALPHASAT           | D3DPBLENDCAPS_BOTHSRCALPHA          |
+        D3DPBLENDCAPS_BOTHINVSRCALPHA);
+
+    caps->dpcLineCaps.dwDestBlendCaps &= (
+        D3DPBLENDCAPS_ZERO               | D3DPBLENDCAPS_ONE                   | D3DPBLENDCAPS_SRCCOLOR              |
+        D3DPBLENDCAPS_INVSRCCOLOR        | D3DPBLENDCAPS_SRCALPHA              | D3DPBLENDCAPS_INVSRCALPHA           |
+        D3DPBLENDCAPS_DESTALPHA          | D3DPBLENDCAPS_INVDESTALPHA          | D3DPBLENDCAPS_DESTCOLOR             |
+        D3DPBLENDCAPS_INVDESTCOLOR       | D3DPBLENDCAPS_SRCALPHASAT           | D3DPBLENDCAPS_BOTHSRCALPHA          |
+        D3DPBLENDCAPS_BOTHINVSRCALPHA);
+
+    caps->dpcLineCaps.dwAlphaCmpCaps &= (
+        D3DPCMPCAPS_NEVER                | D3DPCMPCAPS_LESS                    | D3DPCMPCAPS_EQUAL                   |
+        D3DPCMPCAPS_LESSEQUAL            | D3DPCMPCAPS_GREATER                 | D3DPCMPCAPS_NOTEQUAL                |
+        D3DPCMPCAPS_GREATEREQUAL         | D3DPCMPCAPS_ALWAYS);
+
+    caps->dpcLineCaps.dwShadeCaps &= (
+        D3DPSHADECAPS_COLORFLATMONO      | D3DPSHADECAPS_COLORFLATRGB          | D3DPSHADECAPS_COLORGOURAUDMONO      |
+        D3DPSHADECAPS_COLORGOURAUDRGB    | D3DPSHADECAPS_COLORPHONGMONO        | D3DPSHADECAPS_COLORPHONGRGB         |
+        D3DPSHADECAPS_SPECULARFLATMONO   | D3DPSHADECAPS_SPECULARFLATRGB       | D3DPSHADECAPS_SPECULARGOURAUDMONO   |
+        D3DPSHADECAPS_SPECULARGOURAUDRGB | D3DPSHADECAPS_SPECULARPHONGMONO     | D3DPSHADECAPS_SPECULARPHONGRGB      |
+        D3DPSHADECAPS_ALPHAFLATBLEND     | D3DPSHADECAPS_ALPHAFLATSTIPPLED     | D3DPSHADECAPS_ALPHAGOURAUDBLEND     |
+        D3DPSHADECAPS_ALPHAGOURAUDSTIPPLED | D3DPSHADECAPS_ALPHAPHONGBLEND     | D3DPSHADECAPS_ALPHAPHONGSTIPPLED    |
+        D3DPSHADECAPS_FOGFLAT            | D3DPSHADECAPS_FOGGOURAUD            | D3DPSHADECAPS_FOGPHONG);
+
+    caps->dpcLineCaps.dwTextureCaps &= (
+        D3DPTEXTURECAPS_PERSPECTIVE      | D3DPTEXTURECAPS_POW2                | D3DPTEXTURECAPS_ALPHA               |
+        D3DPTEXTURECAPS_TRANSPARENCY     | D3DPTEXTURECAPS_BORDER              | D3DPTEXTURECAPS_SQUAREONLY          |
+        D3DPTEXTURECAPS_TEXREPEATNOTSCALEDBYSIZE | D3DPTEXTURECAPS_ALPHAPALETTE| D3DPTEXTURECAPS_NONPOW2CONDITIONAL  |
+        D3DPTEXTURECAPS_PROJECTED        | D3DPTEXTURECAPS_CUBEMAP             | D3DPTEXTURECAPS_COLORKEYBLEND);
+
+    caps->dpcLineCaps.dwTextureFilterCaps &= (
+        D3DPTFILTERCAPS_NEAREST          | D3DPTFILTERCAPS_LINEAR              | D3DPTFILTERCAPS_MIPNEAREST          |
+        D3DPTFILTERCAPS_MIPLINEAR        | D3DPTFILTERCAPS_LINEARMIPNEAREST    | D3DPTFILTERCAPS_LINEARMIPLINEAR     |
+        D3DPTFILTERCAPS_MINFPOINT        | D3DPTFILTERCAPS_MINFLINEAR          | D3DPTFILTERCAPS_MINFANISOTROPIC     |
+        D3DPTFILTERCAPS_MIPFPOINT        | D3DPTFILTERCAPS_MIPFLINEAR          | D3DPTFILTERCAPS_MAGFPOINT           |
+        D3DPTFILTERCAPS_MAGFLINEAR       | D3DPTFILTERCAPS_MAGFANISOTROPIC     | D3DPTFILTERCAPS_MAGFAFLATCUBIC      |
+        D3DPTFILTERCAPS_MAGFGAUSSIANCUBIC);
+
+    caps->dpcLineCaps.dwTextureAddressCaps &= (
+        D3DPTADDRESSCAPS_WRAP            | D3DPTADDRESSCAPS_MIRROR             | D3DPTADDRESSCAPS_CLAMP              |
+        D3DPTADDRESSCAPS_BORDER          | D3DPTADDRESSCAPS_INDEPENDENTUV);
+
+    if (!(caps->dpcLineCaps.dwTextureCaps & D3DPTEXTURECAPS_POW2))
+    {
+        /* DirectX7 always has the np2 flag set, no matter what the card
+         * supports. Some old games (Rollcage) check the caps incorrectly.
+         * If wined3d supports nonpow2 textures it also has np2 conditional
+         * support. */
+        caps->dpcLineCaps.dwTextureCaps |= D3DPTEXTURECAPS_POW2 | D3DPTEXTURECAPS_NONPOW2CONDITIONAL;
+    }
+
+    /* Fill the missing members, and do some fixup */
+    caps->dpcLineCaps.dwSize = sizeof(caps->dpcLineCaps);
+    caps->dpcLineCaps.dwTextureBlendCaps = D3DPTBLENDCAPS_ADD
+            | D3DPTBLENDCAPS_MODULATEMASK
+            | D3DPTBLENDCAPS_COPY
+            | D3DPTBLENDCAPS_DECAL
+            | D3DPTBLENDCAPS_DECALALPHA
+            | D3DPTBLENDCAPS_DECALMASK
+            | D3DPTBLENDCAPS_MODULATE
+            | D3DPTBLENDCAPS_MODULATEALPHA;
+    caps->dpcLineCaps.dwStippleWidth = 32;
+    caps->dpcLineCaps.dwStippleHeight = 32;
+    /* Use the same for the TriCaps */
+    caps->dpcTriCaps = caps->dpcLineCaps;
+
+    caps->dwDeviceRenderBitDepth = DDBD_16 | DDBD_24 | DDBD_32;
+    caps->dwDeviceZBufferBitDepth = DDBD_16 | DDBD_24;
+    caps->dwMinTextureWidth = 1;
+    caps->dwMinTextureHeight = 1;
+
+    /* Convert DWORDs safely to WORDs */
+    if (wined3d_caps.MaxTextureBlendStages > 0xffff)
+        caps->wMaxTextureBlendStages = 0xffff;
+    else
+        caps->wMaxTextureBlendStages = (WORD)wined3d_caps.MaxTextureBlendStages;
+    if (wined3d_caps.MaxSimultaneousTextures > 0xffff)
+        caps->wMaxSimultaneousTextures = 0xffff;
+    else
+        caps->wMaxSimultaneousTextures = (WORD)wined3d_caps.MaxSimultaneousTextures;
+
+    if (wined3d_caps.MaxUserClipPlanes > 0xffff)
+        caps->wMaxUserClipPlanes = 0xffff;
+    else
+        caps->wMaxUserClipPlanes = (WORD)wined3d_caps.MaxUserClipPlanes;
+    if (wined3d_caps.MaxVertexBlendMatrices > 0xffff)
+        caps->wMaxVertexBlendMatrices = 0xffff;
+    else
+        caps->wMaxVertexBlendMatrices = (WORD)wined3d_caps.MaxVertexBlendMatrices;
+
+    caps->deviceGUID = IID_IDirect3DTnLHalDevice;
+
+    caps->dwReserved1 = 0;
+    caps->dwReserved2 = 0;
+    caps->dwReserved3 = 0;
+    caps->dwReserved4 = 0;
+
+    return DD_OK;
+}
+
 /*****************************************************************************
  * IDirectDraw7::GetCaps
  *
@@ -1228,11 +1496,8 @@ static HRESULT WINAPI ddraw7_GetCaps(IDirectDraw7 *iface, DDCAPS *DriverCaps, DD
     caps.dwSSBCKeyCaps = winecaps.ddraw_caps.ssb_color_key_caps;
     caps.dwSSBFXCaps = winecaps.ddraw_caps.ssb_fx_caps;
 
-    if (winecaps.ddraw_caps.stride_align)
-    {
-        caps.dwCaps |= DDCAPS_ALIGNSTRIDE;
-        caps.dwAlignStrideAlign = winecaps.ddraw_caps.stride_align;
-    }
+    caps.dwCaps |= DDCAPS_ALIGNSTRIDE;
+    caps.dwAlignStrideAlign = DDRAW_STRIDE_ALIGNMENT;
 
     if(DriverCaps)
     {
@@ -2697,6 +2962,21 @@ static HRESULT CreateSurface(struct ddraw *ddraw, DDSURFACEDESC2 *DDSD,
         }
     }
 
+    if (DDSD->ddsCaps.dwCaps2 & DDSCAPS2_TEXTUREMANAGE)
+    {
+        if (!(DDSD->ddsCaps.dwCaps & DDSCAPS_TEXTURE))
+        {
+            WARN("DDSCAPS2_TEXTUREMANAGE used without DDSCAPS_TEXTURE, returning DDERR_INVALIDCAPS.\n");
+            return DDERR_INVALIDCAPS;
+        }
+        if (DDSD->ddsCaps.dwCaps & (DDSCAPS_VIDEOMEMORY | DDSCAPS_SYSTEMMEMORY))
+        {
+            WARN("DDSCAPS2_TEXTUREMANAGE used width DDSCAPS_VIDEOMEMORY "
+                    "or DDSCAPS_SYSTEMMEMORY, returning DDERR_INVALIDCAPS.\n");
+            return DDERR_INVALIDCAPS;
+        }
+    }
+
     /* According to the msdn this flag is ignored by CreateSurface */
     if (DDSD->dwSize >= sizeof(DDSURFACEDESC2))
         DDSD->ddsCaps.dwCaps2 &= ~DDSCAPS2_MIPMAPSUBLEVEL;
@@ -2718,6 +2998,27 @@ static HRESULT CreateSurface(struct ddraw *ddraw, DDSURFACEDESC2 *DDSD,
         desc2.u4.ddpfPixelFormat.dwSize=sizeof(DDPIXELFORMAT);
 
         ddrawformat_from_wined3dformat(&desc2.u4.ddpfPixelFormat, mode.format_id);
+    }
+
+    if (!(desc2.ddsCaps.dwCaps & (DDSCAPS_VIDEOMEMORY | DDSCAPS_SYSTEMMEMORY))
+            && !(desc2.ddsCaps.dwCaps2 & DDSCAPS2_TEXTUREMANAGE))
+    {
+        enum wined3d_format_id format = wined3dformat_from_ddrawformat(&desc2.u4.ddpfPixelFormat);
+        enum wined3d_resource_type rtype;
+
+        if (desc2.ddsCaps.dwCaps & DDSCAPS_TEXTURE)
+            rtype = WINED3D_RTYPE_TEXTURE;
+        else if (desc2.ddsCaps.dwCaps2 & DDSCAPS2_CUBEMAP)
+            rtype = WINED3D_RTYPE_CUBE_TEXTURE;
+        else
+            rtype = WINED3D_RTYPE_SURFACE;
+
+        hr = wined3d_check_device_format(ddraw->wined3d, WINED3DADAPTER_DEFAULT, WINED3D_DEVICE_TYPE_HAL,
+                mode.format_id, 0, rtype, format);
+        if (SUCCEEDED(hr))
+            desc2.ddsCaps.dwCaps |= DDSCAPS_VIDEOMEMORY;
+        else
+            desc2.ddsCaps.dwCaps |= DDSCAPS_SYSTEMMEMORY;
     }
 
     /* No Width or no Height? Use the original screen size
@@ -2861,12 +3162,24 @@ static HRESULT CreateSurface(struct ddraw *ddraw, DDSURFACEDESC2 *DDSD,
         }
     }
 
+    if (desc2.ddsCaps.dwCaps & DDSCAPS_TEXTURE)
+    {
+        hr = ddraw_surface_create_texture(object, flags);
+        if (FAILED(hr))
+        {
+            if (version == 7)
+                IDirectDrawSurface7_Release(&object->IDirectDrawSurface7_iface);
+            else if (version == 4)
+                IDirectDrawSurface4_Release(&object->IDirectDrawSurface4_iface);
+            else
+                IDirectDrawSurface_Release(&object->IDirectDrawSurface_iface);
+
+            return hr;
+        }
+    }
+
     if (desc2.ddsCaps.dwCaps & DDSCAPS_PRIMARYSURFACE)
         ddraw->primary = object;
-
-    /* Create a WineD3DTexture if a texture was requested */
-    if (desc2.ddsCaps.dwCaps & DDSCAPS_TEXTURE)
-        ddraw_surface_create_texture(object, flags);
 
     return hr;
 }
@@ -3690,7 +4003,6 @@ static HRESULT WINAPI d3d7_EnumDevices(IDirect3D7 *iface, LPD3DENUMDEVICESCALLBA
 {
     struct ddraw *ddraw = impl_from_IDirect3D7(iface);
     D3DDEVICEDESC7 device_desc7;
-    D3DDEVICEDESC device_desc1;
     HRESULT hr;
     size_t i;
 
@@ -3701,8 +4013,7 @@ static HRESULT WINAPI d3d7_EnumDevices(IDirect3D7 *iface, LPD3DENUMDEVICESCALLBA
 
     wined3d_mutex_lock();
 
-    hr = IDirect3DImpl_GetCaps(ddraw->wined3d, &device_desc1, &device_desc7);
-    if (hr != D3D_OK)
+    if (FAILED(hr = ddraw_get_d3dcaps(ddraw, &device_desc7)))
     {
         wined3d_mutex_unlock();
         return hr;
@@ -3768,12 +4079,12 @@ static HRESULT WINAPI d3d3_EnumDevices(IDirect3D3 *iface, LPD3DENUMDEVICESCALLBA
 
     wined3d_mutex_lock();
 
-    hr = IDirect3DImpl_GetCaps(ddraw->wined3d, &device_desc1, &device_desc7);
-    if (hr != D3D_OK)
+    if (FAILED(hr = ddraw_get_d3dcaps(ddraw, &device_desc7)))
     {
         wined3d_mutex_unlock();
         return hr;
     }
+    ddraw_d3dcaps1_from_7(&device_desc1, &device_desc7);
 
     /* Do I have to enumerate the reference id? Note from old d3d7:
      * "It seems that enumerating the reference IID on Direct3D 1 games
@@ -4132,10 +4443,11 @@ static HRESULT WINAPI d3d3_FindDevice(IDirect3D3 *iface, D3DFINDDEVICESEARCH *fd
     }
 
     /* Get the caps */
-    hr = IDirect3DImpl_GetCaps(ddraw->wined3d, &desc1, &desc7);
-    if (hr != D3D_OK) return hr;
+    if (FAILED(hr = ddraw_get_d3dcaps(ddraw, &desc7)))
+        return hr;
 
     /* Now return our own GUID */
+    ddraw_d3dcaps1_from_7(&desc1, &desc7);
     fdr->guid = IID_D3DDEVICE_WineD3D;
     fdr->ddHwDesc = desc1;
     fdr->ddSwDesc = desc1;
@@ -4508,301 +4820,6 @@ static HRESULT WINAPI d3d3_EvictManagedTextures(IDirect3D3 *iface)
     TRACE("iface %p.\n", iface);
 
     return d3d7_EvictManagedTextures(&ddraw->IDirect3D7_iface);
-}
-
-/*****************************************************************************
- * IDirect3DImpl_GetCaps
- *
- * This function retrieves the device caps from wined3d
- * and converts it into a D3D7 and D3D - D3D3 structure
- * This is a helper function called from various places in ddraw
- *
- * Params:
- *  wined3d: The interface to get the caps from
- *  desc1: Old D3D <3 structure to fill (needed)
- *  desc7: D3D7 device desc structure to fill (needed)
- *
- * Returns
- *  D3D_OK on success, or the return value of IWineD3D::GetCaps
- *
- *****************************************************************************/
-HRESULT IDirect3DImpl_GetCaps(const struct wined3d *wined3d, D3DDEVICEDESC *desc1, D3DDEVICEDESC7 *desc7)
-{
-    WINED3DCAPS wined3d_caps;
-    HRESULT hr;
-
-    TRACE("wined3d %p, desc1 %p, desc7 %p.\n", wined3d, desc1, desc7);
-
-    memset(&wined3d_caps, 0, sizeof(wined3d_caps));
-
-    wined3d_mutex_lock();
-    hr = wined3d_get_device_caps(wined3d, 0, WINED3D_DEVICE_TYPE_HAL, &wined3d_caps);
-    wined3d_mutex_unlock();
-    if (FAILED(hr))
-    {
-        WARN("Failed to get device caps, hr %#x.\n", hr);
-        return hr;
-    }
-
-    /* Copy the results into the d3d7 and d3d3 structures */
-    desc7->dwDevCaps = wined3d_caps.DevCaps;
-    desc7->dpcLineCaps.dwMiscCaps = wined3d_caps.PrimitiveMiscCaps;
-    desc7->dpcLineCaps.dwRasterCaps = wined3d_caps.RasterCaps;
-    desc7->dpcLineCaps.dwZCmpCaps = wined3d_caps.ZCmpCaps;
-    desc7->dpcLineCaps.dwSrcBlendCaps = wined3d_caps.SrcBlendCaps;
-    desc7->dpcLineCaps.dwDestBlendCaps = wined3d_caps.DestBlendCaps;
-    desc7->dpcLineCaps.dwAlphaCmpCaps = wined3d_caps.AlphaCmpCaps;
-    desc7->dpcLineCaps.dwShadeCaps = wined3d_caps.ShadeCaps;
-    desc7->dpcLineCaps.dwTextureCaps = wined3d_caps.TextureCaps;
-    desc7->dpcLineCaps.dwTextureFilterCaps = wined3d_caps.TextureFilterCaps;
-    desc7->dpcLineCaps.dwTextureAddressCaps = wined3d_caps.TextureAddressCaps;
-
-    desc7->dwMaxTextureWidth = wined3d_caps.MaxTextureWidth;
-    desc7->dwMaxTextureHeight = wined3d_caps.MaxTextureHeight;
-
-    desc7->dwMaxTextureRepeat = wined3d_caps.MaxTextureRepeat;
-    desc7->dwMaxTextureAspectRatio = wined3d_caps.MaxTextureAspectRatio;
-    desc7->dwMaxAnisotropy = wined3d_caps.MaxAnisotropy;
-    desc7->dvMaxVertexW = wined3d_caps.MaxVertexW;
-
-    desc7->dvGuardBandLeft = wined3d_caps.GuardBandLeft;
-    desc7->dvGuardBandTop = wined3d_caps.GuardBandTop;
-    desc7->dvGuardBandRight = wined3d_caps.GuardBandRight;
-    desc7->dvGuardBandBottom = wined3d_caps.GuardBandBottom;
-
-    desc7->dvExtentsAdjust = wined3d_caps.ExtentsAdjust;
-    desc7->dwStencilCaps = wined3d_caps.StencilCaps;
-
-    desc7->dwFVFCaps = wined3d_caps.FVFCaps;
-    desc7->dwTextureOpCaps = wined3d_caps.TextureOpCaps;
-
-    desc7->dwVertexProcessingCaps = wined3d_caps.VertexProcessingCaps;
-    desc7->dwMaxActiveLights = wined3d_caps.MaxActiveLights;
-
-    /* Remove all non-d3d7 caps */
-    desc7->dwDevCaps &= (
-        D3DDEVCAPS_FLOATTLVERTEX         | D3DDEVCAPS_SORTINCREASINGZ          | D3DDEVCAPS_SORTDECREASINGZ          |
-        D3DDEVCAPS_SORTEXACT             | D3DDEVCAPS_EXECUTESYSTEMMEMORY      | D3DDEVCAPS_EXECUTEVIDEOMEMORY       |
-        D3DDEVCAPS_TLVERTEXSYSTEMMEMORY  | D3DDEVCAPS_TLVERTEXVIDEOMEMORY      | D3DDEVCAPS_TEXTURESYSTEMMEMORY      |
-        D3DDEVCAPS_TEXTUREVIDEOMEMORY    | D3DDEVCAPS_DRAWPRIMTLVERTEX         | D3DDEVCAPS_CANRENDERAFTERFLIP       |
-        D3DDEVCAPS_TEXTURENONLOCALVIDMEM | D3DDEVCAPS_DRAWPRIMITIVES2          | D3DDEVCAPS_SEPARATETEXTUREMEMORIES  |
-        D3DDEVCAPS_DRAWPRIMITIVES2EX     | D3DDEVCAPS_HWTRANSFORMANDLIGHT      | D3DDEVCAPS_CANBLTSYSTONONLOCAL      |
-        D3DDEVCAPS_HWRASTERIZATION);
-
-    desc7->dwStencilCaps &= (
-        D3DSTENCILCAPS_KEEP              | D3DSTENCILCAPS_ZERO                 | D3DSTENCILCAPS_REPLACE              |
-        D3DSTENCILCAPS_INCRSAT           | D3DSTENCILCAPS_DECRSAT              | D3DSTENCILCAPS_INVERT               |
-        D3DSTENCILCAPS_INCR              | D3DSTENCILCAPS_DECR);
-
-    /* FVF caps ?*/
-
-    desc7->dwTextureOpCaps &= (
-        D3DTEXOPCAPS_DISABLE             | D3DTEXOPCAPS_SELECTARG1             | D3DTEXOPCAPS_SELECTARG2             |
-        D3DTEXOPCAPS_MODULATE            | D3DTEXOPCAPS_MODULATE2X             | D3DTEXOPCAPS_MODULATE4X             |
-        D3DTEXOPCAPS_ADD                 | D3DTEXOPCAPS_ADDSIGNED              | D3DTEXOPCAPS_ADDSIGNED2X            |
-        D3DTEXOPCAPS_SUBTRACT            | D3DTEXOPCAPS_ADDSMOOTH              | D3DTEXOPCAPS_BLENDTEXTUREALPHA      |
-        D3DTEXOPCAPS_BLENDFACTORALPHA    | D3DTEXOPCAPS_BLENDTEXTUREALPHAPM    | D3DTEXOPCAPS_BLENDCURRENTALPHA      |
-        D3DTEXOPCAPS_PREMODULATE         | D3DTEXOPCAPS_MODULATEALPHA_ADDCOLOR | D3DTEXOPCAPS_MODULATECOLOR_ADDALPHA |
-        D3DTEXOPCAPS_MODULATEINVALPHA_ADDCOLOR | D3DTEXOPCAPS_MODULATEINVCOLOR_ADDALPHA | D3DTEXOPCAPS_BUMPENVMAP    |
-        D3DTEXOPCAPS_BUMPENVMAPLUMINANCE | D3DTEXOPCAPS_DOTPRODUCT3);
-
-    desc7->dwVertexProcessingCaps &= (
-        D3DVTXPCAPS_TEXGEN               | D3DVTXPCAPS_MATERIALSOURCE7         | D3DVTXPCAPS_VERTEXFOG               |
-        D3DVTXPCAPS_DIRECTIONALLIGHTS    | D3DVTXPCAPS_POSITIONALLIGHTS        | D3DVTXPCAPS_LOCALVIEWER);
-
-    desc7->dpcLineCaps.dwMiscCaps &= (
-        D3DPMISCCAPS_MASKPLANES          | D3DPMISCCAPS_MASKZ                  | D3DPMISCCAPS_LINEPATTERNREP         |
-        D3DPMISCCAPS_CONFORMANT          | D3DPMISCCAPS_CULLNONE               | D3DPMISCCAPS_CULLCW                 |
-        D3DPMISCCAPS_CULLCCW);
-
-    desc7->dpcLineCaps.dwRasterCaps &= (
-        D3DPRASTERCAPS_DITHER            | D3DPRASTERCAPS_ROP2                 | D3DPRASTERCAPS_XOR                  |
-        D3DPRASTERCAPS_PAT               | D3DPRASTERCAPS_ZTEST                | D3DPRASTERCAPS_SUBPIXEL             |
-        D3DPRASTERCAPS_SUBPIXELX         | D3DPRASTERCAPS_FOGVERTEX            | D3DPRASTERCAPS_FOGTABLE             |
-        D3DPRASTERCAPS_STIPPLE           | D3DPRASTERCAPS_ANTIALIASSORTDEPENDENT | D3DPRASTERCAPS_ANTIALIASSORTINDEPENDENT |
-        D3DPRASTERCAPS_ANTIALIASEDGES    | D3DPRASTERCAPS_MIPMAPLODBIAS        | D3DPRASTERCAPS_ZBIAS                |
-        D3DPRASTERCAPS_ZBUFFERLESSHSR    | D3DPRASTERCAPS_FOGRANGE             | D3DPRASTERCAPS_ANISOTROPY           |
-        D3DPRASTERCAPS_WBUFFER           | D3DPRASTERCAPS_TRANSLUCENTSORTINDEPENDENT | D3DPRASTERCAPS_WFOG           |
-        D3DPRASTERCAPS_ZFOG);
-
-    desc7->dpcLineCaps.dwZCmpCaps &= (
-        D3DPCMPCAPS_NEVER                | D3DPCMPCAPS_LESS                    | D3DPCMPCAPS_EQUAL                   |
-        D3DPCMPCAPS_LESSEQUAL            | D3DPCMPCAPS_GREATER                 | D3DPCMPCAPS_NOTEQUAL                |
-        D3DPCMPCAPS_GREATEREQUAL         | D3DPCMPCAPS_ALWAYS);
-
-    desc7->dpcLineCaps.dwSrcBlendCaps &= (
-        D3DPBLENDCAPS_ZERO               | D3DPBLENDCAPS_ONE                   | D3DPBLENDCAPS_SRCCOLOR              |
-        D3DPBLENDCAPS_INVSRCCOLOR        | D3DPBLENDCAPS_SRCALPHA              | D3DPBLENDCAPS_INVSRCALPHA           |
-        D3DPBLENDCAPS_DESTALPHA          | D3DPBLENDCAPS_INVDESTALPHA          | D3DPBLENDCAPS_DESTCOLOR             |
-        D3DPBLENDCAPS_INVDESTCOLOR       | D3DPBLENDCAPS_SRCALPHASAT           | D3DPBLENDCAPS_BOTHSRCALPHA          |
-        D3DPBLENDCAPS_BOTHINVSRCALPHA);
-
-    desc7->dpcLineCaps.dwDestBlendCaps &= (
-        D3DPBLENDCAPS_ZERO               | D3DPBLENDCAPS_ONE                   | D3DPBLENDCAPS_SRCCOLOR              |
-        D3DPBLENDCAPS_INVSRCCOLOR        | D3DPBLENDCAPS_SRCALPHA              | D3DPBLENDCAPS_INVSRCALPHA           |
-        D3DPBLENDCAPS_DESTALPHA          | D3DPBLENDCAPS_INVDESTALPHA          | D3DPBLENDCAPS_DESTCOLOR             |
-        D3DPBLENDCAPS_INVDESTCOLOR       | D3DPBLENDCAPS_SRCALPHASAT           | D3DPBLENDCAPS_BOTHSRCALPHA          |
-        D3DPBLENDCAPS_BOTHINVSRCALPHA);
-
-    desc7->dpcLineCaps.dwAlphaCmpCaps &= (
-        D3DPCMPCAPS_NEVER                | D3DPCMPCAPS_LESS                    | D3DPCMPCAPS_EQUAL                   |
-        D3DPCMPCAPS_LESSEQUAL            | D3DPCMPCAPS_GREATER                 | D3DPCMPCAPS_NOTEQUAL                |
-        D3DPCMPCAPS_GREATEREQUAL         | D3DPCMPCAPS_ALWAYS);
-
-    desc7->dpcLineCaps.dwShadeCaps &= (
-        D3DPSHADECAPS_COLORFLATMONO      | D3DPSHADECAPS_COLORFLATRGB          | D3DPSHADECAPS_COLORGOURAUDMONO      |
-        D3DPSHADECAPS_COLORGOURAUDRGB    | D3DPSHADECAPS_COLORPHONGMONO        | D3DPSHADECAPS_COLORPHONGRGB         |
-        D3DPSHADECAPS_SPECULARFLATMONO   | D3DPSHADECAPS_SPECULARFLATRGB       | D3DPSHADECAPS_SPECULARGOURAUDMONO   |
-        D3DPSHADECAPS_SPECULARGOURAUDRGB | D3DPSHADECAPS_SPECULARPHONGMONO     | D3DPSHADECAPS_SPECULARPHONGRGB      |
-        D3DPSHADECAPS_ALPHAFLATBLEND     | D3DPSHADECAPS_ALPHAFLATSTIPPLED     | D3DPSHADECAPS_ALPHAGOURAUDBLEND     |
-        D3DPSHADECAPS_ALPHAGOURAUDSTIPPLED | D3DPSHADECAPS_ALPHAPHONGBLEND     | D3DPSHADECAPS_ALPHAPHONGSTIPPLED    |
-        D3DPSHADECAPS_FOGFLAT            | D3DPSHADECAPS_FOGGOURAUD            | D3DPSHADECAPS_FOGPHONG);
-
-    desc7->dpcLineCaps.dwTextureCaps &= (
-        D3DPTEXTURECAPS_PERSPECTIVE      | D3DPTEXTURECAPS_POW2                | D3DPTEXTURECAPS_ALPHA               |
-        D3DPTEXTURECAPS_TRANSPARENCY     | D3DPTEXTURECAPS_BORDER              | D3DPTEXTURECAPS_SQUAREONLY          |
-        D3DPTEXTURECAPS_TEXREPEATNOTSCALEDBYSIZE | D3DPTEXTURECAPS_ALPHAPALETTE| D3DPTEXTURECAPS_NONPOW2CONDITIONAL  |
-        D3DPTEXTURECAPS_PROJECTED        | D3DPTEXTURECAPS_CUBEMAP             | D3DPTEXTURECAPS_COLORKEYBLEND);
-
-    desc7->dpcLineCaps.dwTextureFilterCaps &= (
-        D3DPTFILTERCAPS_NEAREST          | D3DPTFILTERCAPS_LINEAR              | D3DPTFILTERCAPS_MIPNEAREST          |
-        D3DPTFILTERCAPS_MIPLINEAR        | D3DPTFILTERCAPS_LINEARMIPNEAREST    | D3DPTFILTERCAPS_LINEARMIPLINEAR     |
-        D3DPTFILTERCAPS_MINFPOINT        | D3DPTFILTERCAPS_MINFLINEAR          | D3DPTFILTERCAPS_MINFANISOTROPIC     |
-        D3DPTFILTERCAPS_MIPFPOINT        | D3DPTFILTERCAPS_MIPFLINEAR          | D3DPTFILTERCAPS_MAGFPOINT           |
-        D3DPTFILTERCAPS_MAGFLINEAR       | D3DPTFILTERCAPS_MAGFANISOTROPIC     | D3DPTFILTERCAPS_MAGFAFLATCUBIC      |
-        D3DPTFILTERCAPS_MAGFGAUSSIANCUBIC);
-
-    desc7->dpcLineCaps.dwTextureAddressCaps &= (
-        D3DPTADDRESSCAPS_WRAP            | D3DPTADDRESSCAPS_MIRROR             | D3DPTADDRESSCAPS_CLAMP              |
-        D3DPTADDRESSCAPS_BORDER          | D3DPTADDRESSCAPS_INDEPENDENTUV);
-
-    if (!(desc7->dpcLineCaps.dwTextureCaps & D3DPTEXTURECAPS_POW2))
-    {
-        /* DirectX7 always has the np2 flag set, no matter what the card
-         * supports. Some old games (Rollcage) check the caps incorrectly.
-         * If wined3d supports nonpow2 textures it also has np2 conditional
-         * support. */
-        desc7->dpcLineCaps.dwTextureCaps |= D3DPTEXTURECAPS_POW2 | D3DPTEXTURECAPS_NONPOW2CONDITIONAL;
-    }
-
-    /* Fill the missing members, and do some fixup */
-    desc7->dpcLineCaps.dwSize = sizeof(desc7->dpcLineCaps);
-    desc7->dpcLineCaps.dwTextureBlendCaps = D3DPTBLENDCAPS_ADD | D3DPTBLENDCAPS_MODULATEMASK |
-                                            D3DPTBLENDCAPS_COPY | D3DPTBLENDCAPS_DECAL |
-                                            D3DPTBLENDCAPS_DECALALPHA | D3DPTBLENDCAPS_DECALMASK |
-                                            D3DPTBLENDCAPS_MODULATE | D3DPTBLENDCAPS_MODULATEALPHA;
-    desc7->dpcLineCaps.dwStippleWidth = 32;
-    desc7->dpcLineCaps.dwStippleHeight = 32;
-    /* Use the same for the TriCaps */
-    desc7->dpcTriCaps = desc7->dpcLineCaps;
-
-    desc7->dwDeviceRenderBitDepth = DDBD_16 | DDBD_24 | DDBD_32;
-    desc7->dwDeviceZBufferBitDepth = DDBD_16 | DDBD_24;
-    desc7->dwMinTextureWidth = 1;
-    desc7->dwMinTextureHeight = 1;
-
-    /* Convert DWORDs safely to WORDs */
-    if (wined3d_caps.MaxTextureBlendStages > 0xffff) desc7->wMaxTextureBlendStages = 0xffff;
-    else desc7->wMaxTextureBlendStages = (WORD)wined3d_caps.MaxTextureBlendStages;
-    if (wined3d_caps.MaxSimultaneousTextures > 0xffff) desc7->wMaxSimultaneousTextures = 0xffff;
-    else desc7->wMaxSimultaneousTextures = (WORD)wined3d_caps.MaxSimultaneousTextures;
-
-    if (wined3d_caps.MaxUserClipPlanes > 0xffff) desc7->wMaxUserClipPlanes = 0xffff;
-    else desc7->wMaxUserClipPlanes = (WORD)wined3d_caps.MaxUserClipPlanes;
-    if (wined3d_caps.MaxVertexBlendMatrices > 0xffff) desc7->wMaxVertexBlendMatrices = 0xffff;
-    else desc7->wMaxVertexBlendMatrices = (WORD)wined3d_caps.MaxVertexBlendMatrices;
-
-    desc7->deviceGUID = IID_IDirect3DTnLHalDevice;
-
-    desc7->dwReserved1 = 0;
-    desc7->dwReserved2 = 0;
-    desc7->dwReserved3 = 0;
-    desc7->dwReserved4 = 0;
-
-    /* Fill the old structure */
-    memset(desc1, 0, sizeof(*desc1));
-    desc1->dwSize = sizeof(D3DDEVICEDESC);
-    desc1->dwFlags = D3DDD_COLORMODEL
-            | D3DDD_DEVCAPS
-            | D3DDD_TRANSFORMCAPS
-            | D3DDD_BCLIPPING
-            | D3DDD_LIGHTINGCAPS
-            | D3DDD_LINECAPS
-            | D3DDD_TRICAPS
-            | D3DDD_DEVICERENDERBITDEPTH
-            | D3DDD_DEVICEZBUFFERBITDEPTH
-            | D3DDD_MAXBUFFERSIZE
-            | D3DDD_MAXVERTEXCOUNT;
-
-    desc1->dcmColorModel = D3DCOLOR_RGB;
-    desc1->dwDevCaps = desc7->dwDevCaps;
-    desc1->dtcTransformCaps.dwSize = sizeof(D3DTRANSFORMCAPS);
-    desc1->dtcTransformCaps.dwCaps = D3DTRANSFORMCAPS_CLIP;
-    desc1->bClipping = TRUE;
-    desc1->dlcLightingCaps.dwSize = sizeof(D3DLIGHTINGCAPS);
-    desc1->dlcLightingCaps.dwCaps = D3DLIGHTCAPS_DIRECTIONAL
-            | D3DLIGHTCAPS_PARALLELPOINT
-            | D3DLIGHTCAPS_POINT
-            | D3DLIGHTCAPS_SPOT;
-
-    desc1->dlcLightingCaps.dwLightingModel = D3DLIGHTINGMODEL_RGB;
-    desc1->dlcLightingCaps.dwNumLights = desc7->dwMaxActiveLights;
-
-    desc1->dpcLineCaps.dwSize = sizeof(D3DPRIMCAPS);
-    desc1->dpcLineCaps.dwMiscCaps = desc7->dpcLineCaps.dwMiscCaps;
-    desc1->dpcLineCaps.dwRasterCaps = desc7->dpcLineCaps.dwRasterCaps;
-    desc1->dpcLineCaps.dwZCmpCaps = desc7->dpcLineCaps.dwZCmpCaps;
-    desc1->dpcLineCaps.dwSrcBlendCaps = desc7->dpcLineCaps.dwSrcBlendCaps;
-    desc1->dpcLineCaps.dwDestBlendCaps = desc7->dpcLineCaps.dwDestBlendCaps;
-    desc1->dpcLineCaps.dwShadeCaps = desc7->dpcLineCaps.dwShadeCaps;
-    desc1->dpcLineCaps.dwTextureCaps = desc7->dpcLineCaps.dwTextureCaps;
-    desc1->dpcLineCaps.dwTextureFilterCaps = desc7->dpcLineCaps.dwTextureFilterCaps;
-    desc1->dpcLineCaps.dwTextureBlendCaps = desc7->dpcLineCaps.dwTextureBlendCaps;
-    desc1->dpcLineCaps.dwTextureAddressCaps = desc7->dpcLineCaps.dwTextureAddressCaps;
-    desc1->dpcLineCaps.dwStippleWidth = desc7->dpcLineCaps.dwStippleWidth;
-    desc1->dpcLineCaps.dwAlphaCmpCaps = desc7->dpcLineCaps.dwAlphaCmpCaps;
-
-    desc1->dpcTriCaps.dwSize = sizeof(D3DPRIMCAPS);
-    desc1->dpcTriCaps.dwMiscCaps = desc7->dpcTriCaps.dwMiscCaps;
-    desc1->dpcTriCaps.dwRasterCaps = desc7->dpcTriCaps.dwRasterCaps;
-    desc1->dpcTriCaps.dwZCmpCaps = desc7->dpcTriCaps.dwZCmpCaps;
-    desc1->dpcTriCaps.dwSrcBlendCaps = desc7->dpcTriCaps.dwSrcBlendCaps;
-    desc1->dpcTriCaps.dwDestBlendCaps = desc7->dpcTriCaps.dwDestBlendCaps;
-    desc1->dpcTriCaps.dwShadeCaps = desc7->dpcTriCaps.dwShadeCaps;
-    desc1->dpcTriCaps.dwTextureCaps = desc7->dpcTriCaps.dwTextureCaps;
-    desc1->dpcTriCaps.dwTextureFilterCaps = desc7->dpcTriCaps.dwTextureFilterCaps;
-    desc1->dpcTriCaps.dwTextureBlendCaps = desc7->dpcTriCaps.dwTextureBlendCaps;
-    desc1->dpcTriCaps.dwTextureAddressCaps = desc7->dpcTriCaps.dwTextureAddressCaps;
-    desc1->dpcTriCaps.dwStippleWidth = desc7->dpcTriCaps.dwStippleWidth;
-    desc1->dpcTriCaps.dwAlphaCmpCaps = desc7->dpcTriCaps.dwAlphaCmpCaps;
-
-    desc1->dwDeviceRenderBitDepth = desc7->dwDeviceRenderBitDepth;
-    desc1->dwDeviceZBufferBitDepth = desc7->dwDeviceZBufferBitDepth;
-    desc1->dwMaxBufferSize = 0;
-    desc1->dwMaxVertexCount = 65536;
-    desc1->dwMinTextureWidth  = desc7->dwMinTextureWidth;
-    desc1->dwMinTextureHeight = desc7->dwMinTextureHeight;
-    desc1->dwMaxTextureWidth  = desc7->dwMaxTextureWidth;
-    desc1->dwMaxTextureHeight = desc7->dwMaxTextureHeight;
-    desc1->dwMinStippleWidth  = 1;
-    desc1->dwMinStippleHeight = 1;
-    desc1->dwMaxStippleWidth  = 32;
-    desc1->dwMaxStippleHeight = 32;
-    desc1->dwMaxTextureRepeat = desc7->dwMaxTextureRepeat;
-    desc1->dwMaxTextureAspectRatio = desc7->dwMaxTextureAspectRatio;
-    desc1->dwMaxAnisotropy = desc7->dwMaxAnisotropy;
-    desc1->dvGuardBandLeft = desc7->dvGuardBandLeft;
-    desc1->dvGuardBandRight = desc7->dvGuardBandRight;
-    desc1->dvGuardBandTop = desc7->dvGuardBandTop;
-    desc1->dvGuardBandBottom = desc7->dvGuardBandBottom;
-    desc1->dvExtentsAdjust = desc7->dvExtentsAdjust;
-    desc1->dwStencilCaps = desc7->dwStencilCaps;
-    desc1->dwFVFCaps = desc7->dwFVFCaps;
-    desc1->dwTextureOpCaps = desc7->dwTextureOpCaps;
-    desc1->wMaxTextureBlendStages = desc7->wMaxTextureBlendStages;
-    desc1->wMaxSimultaneousTextures = desc7->wMaxSimultaneousTextures;
-
-    return DD_OK;
 }
 
 /*****************************************************************************
@@ -5190,8 +5207,9 @@ static HRESULT CDECL device_parent_create_swapchain_surface(struct wined3d_devic
 }
 
 static HRESULT CDECL device_parent_create_volume(struct wined3d_device_parent *device_parent,
-        void *container_parent, UINT width, UINT height, UINT depth, enum wined3d_format_id format,
-        enum wined3d_pool pool, DWORD usage, struct wined3d_volume **volume)
+        void *container_parent, UINT width, UINT height, UINT depth, UINT level,
+        enum wined3d_format_id format, enum wined3d_pool pool, DWORD usage,
+        struct wined3d_volume **volume)
 {
     TRACE("device_parent %p, container_parent %p, width %u, height %u, depth %u, "
             "format %#x, pool %#x, usage %#x, volume %p.\n",
@@ -5275,9 +5293,8 @@ HRESULT ddraw_init(struct ddraw *ddraw, enum wined3d_device_type device_type)
         ddraw->flags |= DDRAW_NO3D;
     }
 
-    hr = wined3d_device_create(ddraw->wined3d, WINED3DADAPTER_DEFAULT, device_type,
-            NULL, 0, 8, &ddraw->device_parent, &ddraw->wined3d_device);
-    if (FAILED(hr))
+    if (FAILED(hr = wined3d_device_create(ddraw->wined3d, WINED3DADAPTER_DEFAULT, device_type,
+            NULL, 0, DDRAW_STRIDE_ALIGNMENT, &ddraw->device_parent, &ddraw->wined3d_device)))
     {
         WARN("Failed to create a wined3d device, hr %#x.\n", hr);
         wined3d_decref(ddraw->wined3d);

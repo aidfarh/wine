@@ -96,35 +96,26 @@ static ULONG WINAPI IDirect3DRMLightImpl_Release(IDirect3DRMLight* iface)
 }
 
 /*** IDirect3DRMObject methods ***/
-static HRESULT WINAPI IDirect3DRMLightImpl_Clone(IDirect3DRMLight* iface,
-                                                  LPUNKNOWN unkwn, REFIID riid,
-                                                  LPVOID* object)
+static HRESULT WINAPI IDirect3DRMLightImpl_Clone(IDirect3DRMLight *iface,
+        IUnknown *outer, REFIID iid, void **out)
 {
-    IDirect3DRMLightImpl *This = impl_from_IDirect3DRMLight(iface);
-
-    FIXME("(%p/%p)->(%p, %s, %p): stub\n", iface, This, unkwn, debugstr_guid(riid), object);
+    FIXME("iface %p, outer %p, iid %s, out %p stub!\n", iface, outer, debugstr_guid(iid), out);
 
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI IDirect3DRMLightImpl_AddDestroyCallback(IDirect3DRMLight* iface,
-                                                               D3DRMOBJECTCALLBACK cb,
-                                                               LPVOID argument)
+static HRESULT WINAPI IDirect3DRMLightImpl_AddDestroyCallback(IDirect3DRMLight *iface,
+        D3DRMOBJECTCALLBACK cb, void *ctx)
 {
-    IDirect3DRMLightImpl *This = impl_from_IDirect3DRMLight(iface);
-
-    FIXME("(%p/%p)->(%p, %p): stub\n", iface, This, cb, argument);
+    FIXME("iface %p, cb %p, ctx %p stub!\n", iface, cb, ctx);
 
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI IDirect3DRMLightImpl_DeleteDestroyCallback(IDirect3DRMLight* iface,
-                                                                  D3DRMOBJECTCALLBACK cb,
-                                                                  LPVOID argument)
+static HRESULT WINAPI IDirect3DRMLightImpl_DeleteDestroyCallback(IDirect3DRMLight *iface,
+        D3DRMOBJECTCALLBACK cb, void *ctx)
 {
-    IDirect3DRMLightImpl *This = impl_from_IDirect3DRMLight(iface);
-
-    FIXME("(%p/%p)->(%p, %p): stub\n", iface, This, cb, argument);
+    FIXME("iface %p, cb %p, ctx %p stub!\n", iface, cb, ctx);
 
     return E_NOTIMPL;
 }
@@ -148,31 +139,23 @@ static DWORD WINAPI IDirect3DRMLightImpl_GetAppData(IDirect3DRMLight* iface)
     return 0;
 }
 
-static HRESULT WINAPI IDirect3DRMLightImpl_SetName(IDirect3DRMLight* iface, LPCSTR name)
+static HRESULT WINAPI IDirect3DRMLightImpl_SetName(IDirect3DRMLight *iface, const char *name)
 {
-    IDirect3DRMLightImpl *This = impl_from_IDirect3DRMLight(iface);
-
-    FIXME("(%p/%p)->(%s): stub\n", iface, This, name);
+    FIXME("iface %p, name %s stub!\n", iface, debugstr_a(name));
 
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI IDirect3DRMLightImpl_GetName(IDirect3DRMLight* iface,
-                                                    LPDWORD size, LPSTR name)
+static HRESULT WINAPI IDirect3DRMLightImpl_GetName(IDirect3DRMLight *iface, DWORD *size, char *name)
 {
-    IDirect3DRMLightImpl *This = impl_from_IDirect3DRMLight(iface);
-
-    FIXME("(%p/%p)->(%p, %p): stub\n", iface, This, size, name);
+    FIXME("iface %p, size %p, name %p stub!\n", iface, size, name);
 
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI IDirect3DRMLightImpl_GetClassName(IDirect3DRMLight* iface,
-                                                         LPDWORD size, LPSTR name)
+static HRESULT WINAPI IDirect3DRMLightImpl_GetClassName(IDirect3DRMLight *iface, DWORD *size, char *name)
 {
-    IDirect3DRMLightImpl *This = impl_from_IDirect3DRMLight(iface);
-
-    TRACE("(%p/%p)->(%p, %p)\n", iface, This, size, name);
+    TRACE("iface %p, size %p, name %p.\n", iface, size, name);
 
     if (!size || *size < strlen("Light") || !name)
         return E_INVALIDARG;

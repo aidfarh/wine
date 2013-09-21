@@ -157,7 +157,8 @@ union file_directory_info
     FILE_ID_FULL_DIRECTORY_INFORMATION id_full;
 };
 
-static int show_dot_files = -1;
+static BOOL show_dot_files;
+static RTL_RUN_ONCE init_once = RTL_RUN_ONCE_INIT;
 
 /* at some point we may want to allow Winelib apps to set this */
 static const int is_case_sensitive = FALSE;
@@ -586,13 +587,13 @@ static char *get_default_drive_device( const char *root )
     if ((f = fopen( "/etc/mtab", "r" )))
     {
         device = parse_mount_entries( f, st.st_dev, st.st_ino );
-        endmntent( f );
+        fclose( f );
     }
     /* look through fstab too in case it's not mounted (for instance if it's an audio CD) */
     if (!device && (f = fopen( "/etc/fstab", "r" )))
     {
         device = parse_mount_entries( f, st.st_dev, st.st_ino );
-        endmntent( f );
+        fclose( f );
     }
     if (device)
     {
@@ -764,7 +765,7 @@ static char *get_device_mount_point( dev_t dev )
                 break;
             }
         }
-        endmntent( f );
+        fclose( f );
     }
     RtlLeaveCriticalSection( &dir_section );
 #elif defined(__APPLE__)
@@ -780,8 +781,8 @@ static char *get_device_mount_point( dev_t dev )
         if (stat( entry[i].f_mntfromname, &st ) == -1) continue;
         if (S_ISBLK(st.st_mode) && st.st_rdev == dev)
         {
-            ret = RtlAllocateHeap( GetProcessHeap(), 0, strlen(entry[i].f_mntfromname) + 1 );
-            if (ret) strcpy( ret, entry[i].f_mntfromname );
+            ret = RtlAllocateHeap( GetProcessHeap(), 0, strlen(entry[i].f_mntonname) + 1 );
+            if (ret) strcpy( ret, entry[i].f_mntonname );
             break;
         }
     }
@@ -1036,7 +1037,7 @@ static BOOLEAN get_dir_case_sensitivity( const char *dir )
  *
  * Initialize the show_dot_files options.
  */
-static void init_options(void)
+static DWORD WINAPI init_options( RTL_RUN_ONCE *once, void *param, void **context )
 {
     static const WCHAR WineW[] = {'S','o','f','t','w','a','r','e','\\','W','i','n','e',0};
     static const WCHAR ShowDotFilesW[] = {'S','h','o','w','D','o','t','F','i','l','e','s',0};
@@ -1045,8 +1046,6 @@ static void init_options(void)
     DWORD dummy;
     OBJECT_ATTRIBUTES attr;
     UNICODE_STRING nameW;
-
-    show_dot_files = 0;
 
     RtlOpenCurrentUser( KEY_ALL_ACCESS, &root );
     attr.Length = sizeof(attr);
@@ -1077,6 +1076,7 @@ static void init_options(void)
 #ifdef linux
     ignore_file( "/sys" );
 #endif
+    return TRUE;
 }
 
 
@@ -1089,7 +1089,8 @@ BOOL DIR_is_hidden_file( const UNICODE_STRING *name )
 {
     WCHAR *p, *end;
 
-    if (show_dot_files == -1) init_options();
+    RtlRunOnceExecuteOnce( &init_once, init_options, NULL, NULL );
+
     if (show_dot_files) return FALSE;
 
     end = p = name->Buffer + name->Length/sizeof(WCHAR);
@@ -2053,9 +2054,9 @@ NTSTATUS WINAPI NtQueryDirectoryFile( HANDLE handle, HANDLE event,
 
     io->Information = 0;
 
-    RtlEnterCriticalSection( &dir_section );
+    RtlRunOnceExecuteOnce( &init_once, init_options, NULL, NULL );
 
-    if (show_dot_files == -1) init_options();
+    RtlEnterCriticalSection( &dir_section );
 
     cwd = open( ".", O_RDONLY );
     if (fchdir( fd ) != -1)

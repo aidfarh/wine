@@ -27,6 +27,8 @@
 #include "config.h"
 #include "wine/port.h"
 
+#include <stdio.h>
+
 #include "wined3d_private.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(d3d);
@@ -189,18 +191,19 @@ struct wined3d_format_block_info
     UINT block_width;
     UINT block_height;
     UINT block_byte_count;
+    BOOL verify;
 };
 
 static const struct wined3d_format_block_info format_block_info[] =
 {
-    {WINED3DFMT_DXT1,   4,  4,  8},
-    {WINED3DFMT_DXT2,   4,  4,  16},
-    {WINED3DFMT_DXT3,   4,  4,  16},
-    {WINED3DFMT_DXT4,   4,  4,  16},
-    {WINED3DFMT_DXT5,   4,  4,  16},
-    {WINED3DFMT_ATI2N,  4,  4,  16},
-    {WINED3DFMT_YUY2,   2,  1,  4},
-    {WINED3DFMT_UYVY,   2,  1,  4},
+    {WINED3DFMT_DXT1,   4,  4,  8,  TRUE},
+    {WINED3DFMT_DXT2,   4,  4,  16, TRUE},
+    {WINED3DFMT_DXT3,   4,  4,  16, TRUE},
+    {WINED3DFMT_DXT4,   4,  4,  16, TRUE},
+    {WINED3DFMT_DXT5,   4,  4,  16, TRUE},
+    {WINED3DFMT_ATI2N,  4,  4,  16, FALSE},
+    {WINED3DFMT_YUY2,   2,  1,  4,  FALSE},
+    {WINED3DFMT_UYVY,   2,  1,  4,  FALSE},
 };
 
 struct wined3d_format_vertex_info
@@ -688,10 +691,6 @@ static const struct wined3d_format_texture_info format_texture_info[] =
             GL_ALPHA,                   GL_UNSIGNED_BYTE,                 0,
             0,
             ARB_FRAGMENT_PROGRAM,       NULL},
-    {WINED3DFMT_P8_UINT,                GL_COLOR_INDEX8_EXT,              GL_COLOR_INDEX8_EXT,                    0,
-            GL_COLOR_INDEX,             GL_UNSIGNED_BYTE,                 0,
-            0,
-            EXT_PALETTED_TEXTURE,       NULL},
     /* Standard ARGB formats */
     {WINED3DFMT_B8G8R8_UNORM,           GL_RGB8,                          GL_RGB8,                                0,
             GL_BGR,                     GL_UNSIGNED_BYTE,                 0,
@@ -1025,6 +1024,8 @@ static BOOL init_format_block_info(struct wined3d_gl_info *gl_info)
         format->block_height = format_block_info[i].block_height;
         format->block_byte_count = format_block_info[i].block_byte_count;
         format->flags |= WINED3DFMT_FLAG_BLOCKS;
+        if (!format_block_info[i].verify)
+            format->flags |= WINED3DFMT_FLAG_BLOCKS_NO_VERIFY;
     }
 
     return TRUE;
@@ -1767,7 +1768,7 @@ static void apply_format_fixups(struct wined3d_adapter *adapter, struct wined3d_
     gl_info->formats[idx].height_scale.denominator = 2;
     gl_info->formats[idx].color_fixup = create_complex_fixup_desc(COMPLEX_FIXUP_YV12);
 
-    if (gl_info->supported[EXT_PALETTED_TEXTURE] || gl_info->supported[ARB_FRAGMENT_PROGRAM])
+    if (gl_info->supported[ARB_FRAGMENT_PROGRAM])
     {
         idx = getFmtIdx(WINED3DFMT_P8_UINT);
         gl_info->formats[idx].color_fixup = create_complex_fixup_desc(COMPLEX_FIXUP_P8);
@@ -1942,7 +1943,8 @@ const struct wined3d_format *wined3d_get_format(const struct wined3d_gl_info *gl
     return &gl_info->formats[idx];
 }
 
-UINT wined3d_format_calculate_size(const struct wined3d_format *format, UINT alignment, UINT width, UINT height)
+UINT wined3d_format_calculate_size(const struct wined3d_format *format, UINT alignment,
+        UINT width, UINT height, UINT depth)
 {
     UINT size;
 
@@ -1967,6 +1969,8 @@ UINT wined3d_format_calculate_size(const struct wined3d_format *format, UINT ali
         size *= format->height_scale.numerator;
         size /= format->height_scale.denominator;
     }
+
+    size *= depth;
 
     return size;
 }
@@ -2586,10 +2590,6 @@ const char *debug_d3dstate(DWORD state)
         return "STATE_GEOMETRY_SHADER";
     if (STATE_IS_VIEWPORT(state))
         return "STATE_VIEWPORT";
-    if (STATE_IS_VERTEXSHADERCONSTANT(state))
-        return "STATE_VERTEXSHADERCONSTANT";
-    if (STATE_IS_PIXELSHADERCONSTANT(state))
-        return "STATE_PIXELSHADERCONSTANT";
     if (STATE_IS_LIGHT_TYPE(state))
         return "STATE_LIGHT_TYPE";
     if (STATE_IS_ACTIVELIGHT(state))
@@ -3614,10 +3614,19 @@ void wined3d_ffp_get_vs_settings(const struct wined3d_state *state, const struct
                     & WINED3D_FFP_LIGHT_TYPE_MASK) << WINED3D_FFP_LIGHT_TYPE_SHIFT(i);
     }
 
+    settings->ortho_fog = 0;
     if (!state->render_states[WINED3D_RS_FOGENABLE])
         settings->fog_mode = WINED3D_FFP_VS_FOG_OFF;
     else if (state->render_states[WINED3D_RS_FOGTABLEMODE] != WINED3D_FOG_NONE)
+    {
         settings->fog_mode = WINED3D_FFP_VS_FOG_DEPTH;
+
+        if (state->transforms[WINED3D_TS_PROJECTION].u.m[0][3] == 0.0f
+                && state->transforms[WINED3D_TS_PROJECTION].u.m[1][3] == 0.0f
+                && state->transforms[WINED3D_TS_PROJECTION].u.m[2][3] == 0.0f
+                && state->transforms[WINED3D_TS_PROJECTION].u.m[3][3] == 1.0f)
+            settings->ortho_fog = 1;
+    }
     else if (state->render_states[WINED3D_RS_FOGVERTEXMODE] == WINED3D_FOG_NONE)
         settings->fog_mode = WINED3D_FFP_VS_FOG_FOGCOORD;
     else if (state->render_states[WINED3D_RS_RANGEFOGENABLE])
@@ -3702,4 +3711,68 @@ void wined3d_get_draw_rect(const struct wined3d_state *state, RECT *rect)
 
     if (state->render_states[WINED3D_RS_SCISSORTESTENABLE])
         IntersectRect(rect, rect, &state->scissor_rect);
+}
+
+const char *wined3d_debug_location(DWORD location)
+{
+    char buf[200];
+
+    buf[0] = '\0';
+#define LOCATION_TO_STR(u) if (location & u) { strcat(buf, " | "#u); location &= ~u; }
+    LOCATION_TO_STR(WINED3D_LOCATION_DISCARDED);
+    LOCATION_TO_STR(WINED3D_LOCATION_SYSMEM);
+    LOCATION_TO_STR(WINED3D_LOCATION_BUFFER);
+    LOCATION_TO_STR(WINED3D_LOCATION_TEXTURE_RGB);
+    LOCATION_TO_STR(WINED3D_LOCATION_TEXTURE_SRGB);
+#undef LOCATION_TO_STR
+    if (location) FIXME("Unrecognized location flag(s) %#x.\n", location);
+
+    return buf[0] ? wine_dbg_sprintf("%s", &buf[3]) : "0";
+}
+
+/* This should be equivalent to using the %.8e format specifier, but always
+ * using '.' as decimal separator. This doesn't handle +/-INF or NAN, since
+ * the GLSL and ARB parsers wouldn't be able to handle those anyway. */
+void wined3d_ftoa(float value, char *s)
+{
+    int x, frac, exponent;
+    const char *sign = "";
+    double d;
+
+    d = value;
+    if (copysignf(1.0f, value) < 0.0f)
+    {
+        d = -d;
+        sign = "-";
+    }
+
+    if (d == 0.0f)
+    {
+        x = 0;
+        frac = 0;
+        exponent = 0;
+    }
+    else
+    {
+        double t, diff;
+
+        exponent = floorf(log10f(d));
+        d /= pow(10.0, exponent);
+
+        x = d;
+        t = (d - x) * 100000000;
+        frac = t;
+        diff = t - frac;
+
+        if ((diff > 0.5) || (diff == 0.5 && (frac & 1)))
+        {
+            if (++frac >= 100000000)
+            {
+                frac = 0;
+                ++x;
+            }
+        }
+    }
+
+    sprintf(s, "%s%d.%08de%+03d", sign, x, frac, exponent);
 }

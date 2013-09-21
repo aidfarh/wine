@@ -1,19 +1,17 @@
-The Wine team is proud to announce that the stable release Wine 1.6
-is now available.
+The Wine development release 1.7.2 is now available.
 
-This release represents 16 months of development effort and around
-10,000 individual changes. The main highlights are the new Mac driver,
-the full support for window transparency, and the new Mono package for
-.NET applications support.
-
-It also contains a lot of improvements across the board, as well as
-support for many new applications and games. See the release notes
-below for a summary of the major changes.
+What's new in this release (see below for details):
+  - Right-to-left text layout improvements.
+  - NTLM and Negotiate authentication for RPC over HTTP.
+  - More glyphs in the built-in Wingdings font.
+  - Better system tray support in the Mac driver.
+  - Activation context improvements.
+  - Various bug fixes.
 
 The source is available from the following locations:
 
-  http://prdownloads.sourceforge.net/wine/wine-1.6.tar.bz2
-  http://mirrors.ibiblio.org/wine/source/1.6/wine-1.6.tar.bz2
+  http://prdownloads.sourceforge.net/wine/wine-1.7.2.tar.bz2
+  http://mirrors.ibiblio.org/wine/source/1.7/wine-1.7.2.tar.bz2
 
 Binary packages for various distributions will be available from:
 
@@ -29,419 +27,394 @@ AUTHORS in the distribution for the complete list.
 
 ----------------------------------------------------------------
 
-What's new in Wine 1.6
-======================
-
-
-*** User interface
-
-- Window transparency is supported, including both color keying and
-  alpha blending transparency.
-
-- All window rendering is done on the client-side using the DIB engine
-  (except for OpenGL rendering). This means that rendering to windows
-  or bitmaps gives identical results.
-
-- Common dialogs correctly scale with the screen DPI resolution.
-
-- In virtual desktop mode, shortcuts placed in the Desktop folder are
-  displayed on the desktop, and can be used to launch applications.
-
-- The HTML Help control has better support for non-ASCII characters,
-  and for multiple help windows.
-
-- Custom painting and images are better supported in listview
-  controls.
-
-- Input validation is improved in the date and calendar controls.
-
-
-*** Mac driver
-
-- A native Mac OS X driver is implemented, for better integration with
-  the Mac desktop environment. The full range of driver features are
-  supported, including OpenGL, window management, clipboard, drag &
-  drop, system tray, etc.
-
-- X11 is no longer needed on Mac OS X, but the X11 driver is still
-  supported, e.g. when running remotely.
-
-Note: the Mac driver requires Mac OS X 10.6 or later, it cannot be
-      built or used on 10.5.
-
-- FontConfig is no longer needed on Mac OS X and is disabled by
-  default, system fonts are enumerated using the Core Text API
-  instead.
-
-
-*** X11 driver
-
-- X11 server-side font rendering is no longer supported. All fonts are
-  rendered client-side using FreeType.
-
-- The big lock around all X11 calls has been removed, we rely on the X
-  libraries internal locking for thread safety.
-
-- XRandR versions 1.2 and 1.3 are supported.
-
-
-*** Graphics
-
-- There are significant performance improvements in the DIB engine,
-  particularly for text rendering, bitmap stretching, alpha blending,
-  and gradients.
-
-- Bounds tracking is supported for all graphics primitives, to enable
-  copying only the modified portions of a bitmap.
-
-- OpenGL rendering is supported in device-independent bitmaps using libOSMesa.
-
-- Brush dithering is implemented in the DIB engine.
-
-- Path gradients are implemented in GdiPlus.
-
-- More image codecs features are implemented, including JPEG encoding,
-  palette formats, and meta-data support for various image types.
-
-
-*** Text and fonts
-
-- Sub-pixel font anti-aliasing is supported in the DIB engine, using
-  the system anti-aliasing configuration from FontConfig.
-
-- Dynamic loading of scalable font resources is supported.
-
-- Text layout in Uniscribe supports character-specific position
-  adjustments. Right-to-left text handling is also improved.
-
-- There is an initial implementation of the DirectWrite text layout
-  engine.
-
-- Built-in fonts are more complete, with the addition of FixedSys and
-  Wingdings fonts, more high-resolution pixel fonts, and a wider range
-  of glyphs in the existing fonts, notably Arabic glyphs in Tahoma.
-
-- Bi-directional text support is improved in the RichEdit control.
-
-
-*** Input devices
-
-- The raw input API is supported for keyboard and mouse input.
-
-- There is a joystick applet in the control panel, to allow
-  configuring joysticks and testing their behavior.
-
-- Force feedback is supported for Mac OS X joysticks.
-
-
-*** Kernel
-
-- DOSBox is tried first when running a DOS application. The Wine DOS
-  support is only used as a fallback when DOSBox cannot be found, and
-  will be removed in a future release.
-
-- A monotonic time counter is used on platforms that support it, to
-  make timers more robust against system time changes.
-
-- File times are reported with nanosecond resolution.
-
-- Wine can be configured to report the Windows version as 'Windows 8'.
-
-
-*** .NET support
-
-- The Mono runtime is packaged as an MSI file, and its installation
-  can be managed from the "Add/Remove Programs" control panel. It is
-  automatically installed on Wine prefix updates.
-
-- .NET mixed mode assemblies are supported.
-
-- The Microsoft .NET 4.0 runtime can be installed for cases where Mono
-  is not good enough yet.
-
-
-*** OLE / COM
-
-- The typelib writer is reimplemented for better compatibility.
-
-- OLE DB supports more data types and conversions.
-
-- OLE automation manages a cache of string allocations for better
-  performance and compatibility.
-
-
-*** Internet and networking
-
-- HTTPS connections use GnuTLS (or Secure Transport on Mac OS X).
-  OpenSSL is no longer used.
-
-- The TLS 1.1 and TLS 1.2 protocols are enabled by default, with
-  automatic fallback to TLS 1.0. The SSL2 protocol is disabled by
-  default.
-
-- Security certificate validation errors are handled better.
-
-- NTLM and Negotiate authentication protocols are supported.
-
-- ActiveX controls can be downloaded and installed automatically.
-
-- Internet proxy bypass is supported, and can be enabled either
-  through the registry or with the no_proxy environment variable.
-
-- Broadcast packets can be received on interface-bound sockets, which
-  is needed for some networked multi-player games.
-
-- The Server Name Indication TLS extension is supported.
-
-- Persistent cookies are supported, and URL cache files are managed
-  better. The Internet control panel allows clearing saved cookies and
-  cache files.
-
-- Punycode encoding for Internationalized Domain Names is supported.
-
-- JavaScript performance is improved. The built-in JavaScript engine
-  is preferred over the Gecko one in most cases.
-
-- Many more built-in functions of VBScript are implemented. Regular
-  expressions are also supported.
-
-- The Gecko engine is updated to the version from Firefox 21.
-
-- The Gecko and Mono installers are cached upon download, to allow
-  installation in multiple Wine prefixes without additional downloads.
-
-
-*** Direct3D
-
-- The Direct3D 9Ex implementation is more complete. In particular:
-  - IDirect3DDevice9Ex::PresentEx is implemented.
-  - IDirect3DDevice9Ex::ResetEx is implemented.
-  - Various Direct3D 9Ex display mode handling functions are implemented.
-  - Direct3D 9Ex style video memory accounting is implemented.
-
-- Like the X11 driver, WineD3D no longer uses the big X11 lock when
-  making GL calls.
-
-- The WineD3D graphics card database is updated to recognize more
-  graphics cards.
-
-- The fallback card detection code for unrecognized graphics cards is
-  improved. This results in a more reasonable card being reported when
-  the graphics card is not already in the WineD3D database.
-
-- WineD3D has GLSL based implementations of Direct3D fixed-function
-  vertex and fragment processing. In some cases this allows
-  functionality that's not present in fixed-function OpenGL to be
-  implemented, in other cases it allows functionality to be
-  implemented in a more efficient way.
-
-- On drivers that support it, GL_ARB_debug_output is used to get more
-  detailed debugging output from the OpenGL driver.
-
-- On drivers that support it, GL_ARB_framebuffer_sRGB is used for
-  rendering to frame buffers in the sRGB color space.
-
-- On drivers that support it, GL_ARB_instanced_arrays is used for more
-  efficient instanced drawing.
-
-- On drivers that support it, and return useful information,
-  GL_ARB_internalformat_query2 is used for more accurate reporting of
-  surface / texture format capabilities.
-
-- There is an initial implementation of a HLSL compiler.
-
-- Improvements to various parts of the D3DX9 implementation, including:
-  - The surface and texture handling functions. This includes code for
-    loading, saving, filling, and rendering to surfaces and textures.
-  - The effects framework.
-  - The constant table implementation.
-  - A number of spherical harmonics functions have been implemented.
-  - Support for .x files.
-
-- Improvements to the Direct3D 10 implementation, including:
-  - Support for more shader model 4 opcodes and register types.
-  - Support for shader model 4 indirect addressing.
-  - Initial geometry shader support.
-  - Improved binary effect parsing.
-  - Support for Direct3D 10 style instanced draws, using
-    GL_ARB_draw_instanced.
-
-
-*** DirectDraw
-
-- Vertex buffers are created with WINED3DUSAGE_DYNAMIC when locked with
-  DDLOCK_DISCARDCONTENTS, resulting in improved performance in some cases.
-
-- The 2D-only fallback in WineD3D for using DirectDraw without a
-  working OpenGL implementation is more robust. Note that this still
-  isn't a recommended configuration.
-
-
-*** Audio and video
-
-- DirectSound has a better resampler.
-
-- Audio device enumeration is improved, and multi-channel devices are
-  better supported.
-
-- VMR-9 video rendering is implemented.
-
-
-*** Printer support
-
-- The PPD files of already installed printers are automatically
-  refreshed when needed.
-
-- Printing resolution can be configured from the print dialog.
-
-- Simulated italic fonts can be printed.
-
-- On Mac OS X, the default paper size is retrieved from the system
-  configuration.
-
-
-*** Internationalization
-
-- Japanese vertical text is correctly supported.
-
-- Translated font names are used when there is a match for the current
-  language.
-
-- Wine is translated to French, German, Spanish, Italian, Dutch,
-  Swedish, Finnish, Portuguese, Catalan, Hungarian, Polish, Danish,
-  Russian, Slovenian, Lithuanian, Chinese, Japanese, Korean, and
-  Arabic. It has partial translations for another fifteen languages.
-
-- Various additional Mac OS code pages are supported, namely Japanese,
-  Traditional Chinese, Korean, Simplified Chinese, Romanian,
-  Ukrainian, Thai, and Croatian code pages. This improves support for
-  loading translated font names from Mac OS font files.
-
-
-*** Built-in applications
-
-- The new 'netstat' application displays information about active
-  network connections.
-
-- The 'cabarc' application supports multi-cabinet archives.
-
-- The 'attrib' application supports recursing in sub-directories.
-
-- The 'ipconfig' application can display IPv6 addresses.
-
-- The 'start' application allows setting process priority and affinity.
-
-- The 'cmd' application support arithmetic variable expansion,
-  comparison operators, and various extra features in 'for' loops.
-
-- All graphical built-in applications have a 256x256 icon for use with
-  the Mac driver.
-
-
-*** Build environment
-
-- The configure script uses pkg-config when possible to find library
-  dependencies. Compiler and linker flags can be passed explicitly for
-  each dependency to override pkg-config where necessary.
-
-- The IDL compiler supports nameless structs and unions and generates
-  portable C code for them.
-
-- The IDL compiler generates the same header guards as the Microsoft
-  one for better header compatibility.
-
-- Generated assembler files are built by invoking the C compiler when
-  possible, for better compatibility with the Clang tool chain.
-
-- The Winedump tool can display the contents of typelib files.
-
-- The Fnt2bdf tool has been removed since X11 server-side fonts are no
-  longer used.
-
-
-*** Platform-specific changes
-
-- On Linux, dynamic device management supports the UDisks2 service.
-
-- On Mac OS X, the Recycle Bin is mapped to the Mac OS Trash.
-
-- Debugging support for ARM platforms is improved, including the
-  ability to display ARM assembly in the Wine debugger, and support
-  for relay tracing.
-
-- Building Wine for the ARM64 platform is supported.
-
-- There is preliminary support for building Wine for Android using the
-  Android NDK.
-
-- The DragonFly FreeBSD variant is supported.
-
-- The Alpha and Sparc platforms are no longer supported.
-
-
-*** Miscellaneous
-
-- XML namespaces are better supported. XML parsing is also implemented
-  in the XMLLite library.
-
-- Windows Management Instrumentation (WMI) is implemented, with a wide
-  range of WBEM system classes.
-
-- A number of forwarding libraries are added to support the API Sets
-  feature added in Windows 8.
-
-- More of the latest functions of the C runtime are implemented,
-  particularly the locale functions. Exception handling and RTTI are
-  supported on 64-bit.
-
-- The standard C++ class libraries are more complete, particularly the
-  math functions and the stream classes.
-
-
-*** New external dependencies
-
-- LibOSMesa is used for OpenGL rendering to device-independent bitmaps.
-
-
-*** Useful configuration options
-
-Note: More details about these and other configuration options can be
-      found at http://wiki.winehq.org/UsefulRegistryKeys
-
-- Client-side window rendering can be disabled if necessary by setting
-  "ClientSideGraphics" to "N" under HKCU\Software\Wine\X11 Driver.
-
-- On Mac OS X, in case an application doesn't work properly with the
-  Mac driver, it is possible to go back to the X11 driver by setting
-  "Graphics" to "x11" under HKCU\Software\Wine\Drivers.
-
-- Some X11 compositors do not cope properly with transparent windows
-  that use non-rectangular shapes. In that case, window shaping can be
-  disabled by setting "ShapeLayeredWindows" to "N" under
-  HKCU\Software\Wine\X11 Driver.
-
-- The "VertexShaderMode" and "PixelShaderMode" settings under
-  HKCU\Software\Wine\Direct3D have been replaced by the "MaxShaderModelVS",
-  "MaxShaderModelGS" and "MaxShaderModelPS" (DWORD) settings. These allow
-  limiting the maximum supported shader model version. Setting these to 0
-  disables support for the corresponding shader type, like "VertexShaderMode"
-  and "PixelShaderMode" did.
-
-- The default value for the "AlwaysOffscreen" setting under
-  HKCU\Software\Wine\Direct3D is "enabled". It can still be disabled
-  by setting it to "disabled".
-
-
-*** Known issues
-
-- The addition of DirectWrite causes Steam to be unable to display
-  text. This can be fixed either by setting dwrite.dll to disabled for
-  steam.exe using Winecfg, or by running Steam with the -no-dwrite
-  option.
-
-- The removal of the big X11 lock can reveal locking bugs in old Xlib
-  versions, notably on RHEL 5. The only solution is to upgrade the X
-  libraries.
+Bugs fixed in 1.7.2 (total 39):
+
+  14401  The Sword project search function causes a crash
+  18248  Everquest certain areas do not render the models just have blank regions
+  19116  MSXML4 installer doesn't install C:\Windows\Installer\{37477865-A3F1-4772-AD43-AAFC6BCFF99F\icon.exe (appinstall)
+  21254  Word 97 needs native oleaut32 to record the first macro
+  24196  oleaut32: typelib registration should not fail bitness-neutral assemblies (32-bit typelib wrapped in 64-bit PE, x64 .NET 2.0 installer)
+  25739  Unhandled Exception - Monopoly Westwood (Win95 settings)
+  25754  Excel Workbook with Macros Is not Running : Getting Crashed.
+  25762  Excel crashes trying to run macros
+  26280  PowerSoccer crashes
+  26746  IncrediMail: No icon for desktop short-cut
+  27052  winedbg and its man page should use "wpid" consistently for Windows' process ID
+  27632  Death and the Fly demo crashes on start
+  28004  PartyPoker fails to install with builtin wininet
+  28663  Multiple Adobe products fail due to improper file type and protocol associations handling (Adobe Reader X online help, Adobe AIR installers)
+  30194  XIII: some levels are not correctly illuminated
+  30765  Outlook 2010 can't connect to exchange server
+  30797  wine(1) man page should mention running built-in programs like explorer.exe
+  30958  StarForge Alpha build: Black screen due to shader compilation errors
+  31205  Mixcraft hangs on exit when using WaveRT audio driver
+  32412  WebSync 2.7.0 doesn't install
+  32537  unimplemented function cfgmgr32.dll.CM_Reenumerate_DevNode, aborting
+  33794  Arabic Entry Box Has Big Errors .
+  33811  Amazon software downloader does not work with builtin msvcrt
+  33827  The Testament of Sherlock Holmes inverted shadows and sharpness
+  33836  Civilization IV shows a lot of XML Load Error while loading
+  33890  Anno 1602 (demo): crash during startup
+  34245  WMI query "select * from win32_Directory" via WMI crashes
+  34268  Louisiana Adventure crashes without native d3dx9_36 (D3DXCompileShaderFromFile() needs to call user-supplied include callbacks for resolving primary shader files)
+  34284  Fur looks wrong on Sims 3 Pets
+  34317  Process Hacker 2.x needs winsta.dll.WinStationRegisterConsoleNotification
+  34381  Rectangle rotation problem using GM_ADVANCED graphicmode
+  34401  QuiteRSS WinRT/ARM port needs msvcr110.dll.fabsf
+  34402  Multiple applications ported to WinRT/ARM require atl110.dll (Halite torrent client for Windows RT )
+  34403  AVP Classic WinRT/ARM port needs xinput1_4.dll
+  34412  Winsock error when connecting to Xsyon game servers
+  34442  Multiple applications ported to WinRT/ARM require msvcr110.dll.?before@type_info@@QBA_NABV1@@Z (Halite torrent client)
+  34464  Jagged Alliance 2 fails to start (becomes unresponsive after startup)
+  34476  Arx Fatalis crashes on start
+  34486  __unDName cannot demangle a string and shows error
+
+----------------------------------------------------------------
+
+Changes since 1.7.1:
+
+Alexandre Julliard (6):
+      ntdll: Add stubs for the SRW lock functions.
+      ntdll: Actually return the mount point in get_device_mount_point on Mac OS.
+      ntdll: Add a configure check for the tcdrain function.
+      gdi32: Add more helpers for converting font sizes to logical coordinates.
+      gdi32: Add a check for overflow in DIB dimensions.
+      taskmgr: Use definitions from winternl.h instead of duplicating them.
+
+Alistair Leslie-Hughes (1):
+      msdasc.idl: Correctly register DataLinks.
+
+Andrew Cook (1):
+      kernel32: Fix argument order for NtIsProcessInJob.
+
+Andrew Eikum (8):
+      oleaut32: Improve TYPEDESC encoding for unknown VARTYPEs.
+      oleaut32: Apply TKIND_DISPATCH changes to FUNCDESC results from ITypeComp::Bind.
+      oleaut32: Correct TRACE statement.
+      oleaut32: Typelib strings of size -1 are NULL.
+      oleaut32: Fix TRACE.
+      oleaut32: Don't crash on NULL string arguments.
+      ieframe: Register CLSID_WebBrowser as an ActiveX control.
+      mshtml: Free advpack after use.
+
+André Hentschel (6):
+      msvcrt: Export fabsf on ARM and x86_64.
+      xinput1_4: Add new dll based on xinput1_3.
+      winedump: Add and use IMAGE_DELAYLOAD_DESCRIPTOR.
+      include: Add delayloadhandler.h.
+      kernel32: Add partial CreateFile2 implementation.
+      kernel32/tests: Add tests for ResolveDelayLoadedAPI.
+
+Aric Stewart (4):
+      Unicode Private Use Area is also rotated by tategaki.
+      gdi32: GetCharWidth32A/W return positive widths for all layouts and various DC transforms.
+      gdi32: ABC value signs remain the same despite any changes in layout direction or viewport.
+      user32: Use Uniscribe ScriptBreak and the resulting Unicode Line Break algorithm to break lines for DT_WORDBREAK.
+
+Austin English (2):
+      netcfgx: Add stub dll.
+      msiexec: Add a fixme for administrative installs.
+
+Bruno Jesus (13):
+      server: Store the protocol while creating the socket.
+      server: Add a request to get socket information.
+      ws2_32: Merge protocol.c and socket.c.
+      ws2_32: Cope with invalid protocols in WSAEnumProtocols.
+      ws2_32: Add parameters TRACE for WS_EnumProtocols.
+      ws2_32: Fix SO_ACCEPTCONN on BSD systems.
+      ws2_32: Remove a FIXME message.
+      ws2_32/tests: Mark WinNT result as broken.
+      ws2_32: Implement WSADuplicateSocket[A|W] using a helper function.
+      kernel32: Fix parameters checking for GetVolumePathName().
+      ws2_32: Implement get socket option SO_PROTOCOL_INFO.
+      ws2_32: Fix WSADuplicateSocket implementation.
+      ws2_32/tests: Add more WSASocket tests.
+
+Detlef Riekenberg (3):
+      scrrun/tests: Ignore case in path names.
+      d3dx11_43: Add stub dll.
+      d3dx11_42: Add stub dll.
+
+Dmitry Timoshkov (15):
+      kernel32/tests: Add a test to show that WaitCommEvent should succeed after SetCommMask(EV_TXEMPTY)+WriteFile+FlushFileBuffers.
+      kernel32/tests: Add a test to show that WaitCommEvent should fail if there is a pending wait.
+      ntdll: Avoid a needless goto.
+      server: Print the debug trace to stderr.
+      ntdll: NtWriteFile should fail for overlapped IO on files if offset is NULL.
+      ntdll: NtReadFile should fail for overlapped IO on files if offset is NULL.
+      ntdll/tests: Add some tests for negative file offsets.
+      server: Add a serial event mask change counter.
+      ntdll: Add support to NtWriteFile for special offset -1.
+      kernel32/tests: Add a read/write test for a COM port.
+      ntdll: NtWriteFile should fail for overlapped IO on files if offset is negative.
+      ntdll: Make NtWriteFile explicitly check for negative offset and fail.
+      ntdll: NtReadFile should fail for overlapped IO on files if offset is negative.
+      shlwapi: Merge two case statements.
+      kernel32/tests: Add a file access test.
+
+François Gouget (9):
+      iphlpapi: Check for proc_pidinfo() instead of assuming libproc.h always defines it.
+      loader: Fix the clean target to delete the generated wine_info.plist file.
+      winegcc: Add a trailing '\n' to the try_link() test file.
+      winegcc: Ignore the test link command stdout and stderr messages.
+      winegcc: Solaris uses the same link option detection code as other platforms.
+      oleaut32/tests: Fix compilation on systems that don't support nameless unions.
+      ddraw/tests: Fix compilation on systems that don't support nameless unions.
+      sane.ds: SANE_SaneSetDefaults() is only used if SONAME_LIBSANE is defined.
+      msi: Make some dialog_xxx() functions static.
+
+Frédéric Delanoy (5):
+      winedbg: Fix manpage formatting.
+      winedbg: Use consistently wpid in documentation.
+      winedbg: Fix winedbg --help message formatting.
+      loader: Mention builtin executables in wine manpage.
+      loader: Update French translation of wine manpage.
+
+George Stephanos (1):
+      advapi32/tests: HKCR mask tests fix for WinNT.
+
+Hans Leidekker (5):
+      wininet: Fix calculation of content length from chunk size.
+      winhttp: Fix the base64 decoder.
+      rpcrt4: Add support for NTLM and Negotiate.
+      rpcrt4: Don't remove the authorization header if the scheme is Basic.
+      rpcrt4: Don't try to decode the authorization value in the first leg.
+
+Henri Verbeet (50):
+      wined3d: Move the MAXLOCKCOUNT constant to surface.c.
+      wined3d: Get rid of some leftover comments referring to the GL lock.
+      wined3d: Avoid some forward declarations.
+      d3dx9: Avoid LPWSTR.
+      d3dx9: Avoid LPCSTR.
+      wined3d: Get rid of some leftover references to IWineD3D.
+      wined3d: Rename wined3d_fake_gl_ctx to wined3d_caps_gl_ctx.
+      wined3d: Don't clamp texture lookups in the GLSL fixed function fragment pipe.
+      d3dx9: Avoid LPSTR.
+      d3dx9: Avoid LPCVOID.
+      wined3d: Use clamp() instead of max() for calculating the clamped cosine in the ffp lighting calculations.
+      wined3d: Avoid a couple of useless glGetUniformLocationARB() calls.
+      wined3d: Don't set WINED3DUSAGE_RENDERTARGET on the front buffer.
+      d3dx9: Avoid LPVOID.
+      d3dcompiler: Get rid of a couple of redundant casts.
+      ddraw: Don't imply WINED3DUSAGE_RENDERTARGET on primary surfaces.
+      wined3d: Enforce WINED3DUSAGE_RENDERTARGET format restrictions on resource creation.
+      wined3d: Enforce WINED3DUSAGE_DEPTHSTENCIL format restrictions on resource creation.
+      d3dcompiler: Avoid LPCSTR.
+      d3dcompiler: Avoid LPCVOID.
+      wined3d: Return 1 instead of 0 for max_vertex_blend_matrices in glsl_vertex_pipe_vp_get_caps().
+      wined3d: Get rid of the SFLAG_INTEXTURE / SFLAG_INSRGBTEX check in surface_set_texture_name().
+      ddraw: Introduce a helper function for initializing a D3DDEVICEDESC structure from a D3DDEVICEDESC7 structure.
+      d3dcompiler: Avoid LPVOID.
+      d3drm: Avoid LPCSTR.
+      wined3d: Get rid of the "dirty" flag to wined3d_texture_set_dirty().
+      wined3d: Replace the "dirty" field in struct gl_texture with WINED3D_TEXTURE_ flags.
+      wined3d: Rewrite surface_modify_location() on top of surface_validate_location() and surface_invalidate_location().
+      d3drm: Avoid LPSTR.
+      d3drm: Avoid LPVOID.
+      wined3d: Get rid of the special SFLAG_INTEXTURE / SFLAG_INSRGBTEX code in surface_modify_location().
+      wined3d: Replace surface_modify_location(surface, location, FALSE) calls with surface_invalidate_location().
+      wined3d: Get rid of surface_modify_location().
+      d3drm: Avoid LPDWORD.
+      d3drm: Avoid LPRECT.
+      wined3d: Get rid of the render target / overlay check in wined3d_surface_flip().
+      wined3d: Properly check if the swapchain format is WINED3DFMT_P8_UINT in primary_render_target_is_p8().
+      ddraw: Get rid of get_config_key().
+      ddraw: Avoid LPVOID.
+      ddraw: Avoid LPBYTE.
+      wined3d: Make primary_render_target_is_p8() work on a swapchain.
+      wined3d: Allow the first render target to be set to NULL.
+      ddraw: Just set the render target to NULL in d3d_device_inner_Release().
+      ddrawex: Avoid LPVOID.
+      d3d8: Avoid LPVOID.
+      wined3d: Just set the first render target to NULL in wined3d_device_uninit_3d().
+      wined3d: Just set the first render target to NULL in wined3d_device_reset().
+      wined3d: Never set the first render target to the front buffer in wined3d_device_init_3d().
+      d3d9: Avoid LPCWSTR.
+      d3d9: Avoid LPVOID.
+
+Huw D. M. Davies (7):
+      iphlpapi: Don't set the dns server list if there are no servers.
+      fonts: Fix glyph names and advance widths.
+      fonts: Add a few more glyphs in wingding.
+      fonts: Add some box-type glyphs to wingdings.
+      iphlpapi/tests: Increase buffer size to prevent overflow.
+      iphlpapi: Move dns server enumeration to a single function.
+      iphlpapi: Add support for ip6 dns addresses.
+
+Jacek Caban (25):
+      crypt32: Get rid of PCertificateChainEngine typedef.
+      crypt32: Use CertificateChainEngine instead of HCERTCHAINENGINE in a few more places.
+      atl110: Added new DLL.
+      crypt32: Use CERT_CHAIN_CACHE_ONLY_URL_RETRIEVAL flag for root store certificate's chain validation.
+      crypt32: Get rid of P*WINE_CONTEXT_INTERFACE typedefs.
+      crypt32: Get rid of PCONTEXT_FUNCS typedef.
+      crypt32: Get rid of PCONTEXT_PROPERTY_LIST typedef.
+      crypt32: Get rid of PWINECRYPT_CERTSTORE typedef.
+      crypt32: Get rid of PCertificateChain typedef.
+      crypt32: Get rid of PWINE_STORE_LIST_ENTRY typedef.
+      crypt32: Get rid of PWINE_COLLECTIONSTORE typedef.
+      crypt32: Get rid of P*_CONTEXT typedefs.
+      crypt32: Get rid of PWINE_FILESTOREINFO typedef.
+      crypt32: Get rid of PCONTEXT_PROPERTY typedef.
+      crypt32: Get rid of PWINE_PROVIDERSTORE typedef.
+      crypt32: Get rid of PWINE_HASH_TO_DELETE and PWINE_REGSTOREINFO typedefs.
+      crypt32: Get rid of remaining P* typedefs.
+      cryptnet: Removed unused typedefs.
+      crypt32: Search world collection when looking for issuer.
+      crypt32: Added support for retrieving issuers from URL cache.
+      crypt32: Added support for retrieving certs by URL.
+      d3d11: Use proper D3D11CreateDevice argument types.
+      d3d11.idl: Added some missing declarations.
+      d3d10_1.idl: Added D3D10_1_SHADER_*_VERSION constants.
+      dxgiformat.h: Added missing formats.
+
+Jactry Zeng (2):
+      riched20/tests: Add tests of ITextDocument_Open.
+      riched20: Add a length return parameter to ME_ToUnicode.
+
+Ken Thomases (8):
+      winemac: Don't use Cocoa parent-child relationship when topmost state is enough to keep owned in front of owner.
+      winemac: When ordering sibling child windows, don't remove and re-add ones already in the right order.
+      winemac: Add support for mouse-move and right- and middle-click events on systray icons in the Mac status bar.
+      winemac: Don't allow dead-key state to repeat after characters are generated.
+      user32: Fix mouseRect computation for starting position when sizing window.
+      winemac: Restrict DescribePixelFormat() to displayable pixel formats.
+      winemac: Return failure from DescribePixelFormat() for invalid pixel format.
+      winemac: Trace the pixel format in DescribePixelFormat().
+
+Marcus Meissner (3):
+      kernel32/tests: Avoid leaving com handle open (Coverity).
+      rpcrt4: Free url in error paths (Coverity).
+      mciqtz32: Do not print uninitialized variables (Coverity).
+
+Matteo Bruni (5):
+      d3d8/tests: Add cnd instruction test.
+      d3dcompiler: Skip search of the parent include for the initial file.
+      d3dx9: Add / improve traces in some shader-related functions.
+      d3dx9: Use the ID3DXInclude object to open the initial file in D3DX[Assemble|Compile|Preprocess]ShaderFromFile.
+      d3dx9/tests: Add some more tests for D3DX[Assemble|Preprocess]ShaderFromFile.
+
+Michael Müller (1):
+      d3d9: Add headers for IDirect3DSwapChain9Ex interface.
+
+Michael Stefaniuc (20):
+      avifil32: Basic COM cleanup for the IAVIStream iface.
+      avifil32: Move the IAVIStream vtbl to avoid forward declarations.
+      msxml3: Avoid shadowing a function parameter.
+      dplayx: Use consistent naming for the IDPLobbySP members.
+      dplayx: Introduce impl_from_IDPLobbySP().
+      dplayx: Simplify ref-counting for IDPLobbySP.
+      dplayx: Remove the unused lock from IDPLobbySPImpl.
+      dplayx: Merge the extra struct into IDPLobbySPImpl.
+      dplayx: Finish the COM cleanup for IDPLobbySP.
+      dplayx: Simplify the creation of a IDPLobbySPImpl COM object.
+      dplayx: Fix the initial refcount of the IDPLobbySPImpl object.
+      dplayx: Use consistent naming for the IDirectPlaySP methods.
+      dplayx: Introduce impl_from_IDirectPlaySP().
+      dplayx: Simplify ref-counting for IDirectPlaySP.
+      dplayx: Remove commented out TRACEs that mimic +tid functionality.
+      dplayx: Remove the unused lock from IDirectPlaySPImpl.
+      dplayx: Merge the extra struct into IDirectPlaySPImpl.
+      dplayx: Finish the COM cleanup for IDirectPlaySP.
+      dplayx: Simplify the creation of an IDirectPlaySPImpl object.
+      ntdll: Avoid TRUE FALSE conditional expressions.
+
+Nikolay Sivov (33):
+      kernel32/tests: Some tests for 'comInterfaceProxyStub' data.
+      kernel32/tests: Some tests for 'comInterfaceExternalProxyStub' data.
+      ntdll: Store all interface redirection data in context.
+      ntdll: Implement interface redirection section.
+      ntdll: For typelib and COM class sections point global data to module names.
+      ntdll: Store clrSurrogate version value, added some tests.
+      ntdll: Implement compatible section for 'clrSurrogate'.
+      kernel32/tests: Some tests for clrClass data.
+      ntdll: Store 'clrClass' as COM class.
+      kernel32: Forward ZombifyActCtx() to ntdll.
+      shell32: Consistently return interface pointer instead of implementation pointer.
+      ntdll: Added support for multiple progids in comClass and clrClass elements.
+      shell32: Fix remaining cases of implementation pointer being returned.
+      po: Tweak Russian strings for winecfg.
+      kernel32/tests: Some tests for initial thread activation context.
+      ntdll: Inherit default activation context from creation thread.
+      user32/tests: Test to show that SendMessage/PostMessage don't force caller activation context on window thread.
+      kernel32/tests: Added some activation context tests for SearchPath().
+      comctl32: Fix LVS_OWNERDRAWFIXED handling in hittesting.
+      comctl32/tests: Manually load comctl32.dll with newly activated context.
+      ntdll: Added compatible sections for clrClass data.
+      shell32: Fix search for a command string to cover more cases (like protocol associations).
+      shell32: Added support for ASSOCF_NOTRUNCATE flag in GetString().
+      shell32: Fix handle leak on consecutive Init() calls.
+      shell32: Remove asserts on invalid parameters.
+      msxml3: Added ISupportErrorInfo support for schema cache.
+      shell32: Fix getting a command string when root key default value doesn't point to a key.
+      ntdll: Try application manifest path when searching for dependent assemblies.
+      kernel32: Support activation context in SearchPath().
+      include: Added a definition for CopyFile2.
+      kernel32/tests: Some tests for CopyFile2().
+      kernel32/tests: Some tests for ProgID section.
+      ntdll: Added compatible ProgID section.
+
+Piotr Caban (6):
+      winedump: Improve TLB string table handling.
+      winedump: Fix TLB function dumping.
+      oleaut32: Add ICreateTypeInfo2::SetVarName implementation.
+      msvcr110: Add forwards to type_info::before function.
+      msvcrt: Don't forward _wcsnicmp to ntdll.
+      msvcrt: Add support for vtordisp functions demangling.
+
+Rafał Mużyło (1):
+      configure: Don't use X_PRE_LIBS.
+
+Ralf Habacker (1):
+      gdi32: Fixed Rectangle() rotation with GM_ADVANCED graphics mode in dib driver.
+
+Roderick Colenbrander (2):
+      winex11: Refactor wglSwapIntervalEXT for use with glXSwapIntervalEXT.
+      winex11: Support WGL_EXT_swap_control_tear.
+
+Stefan Dösinger (32):
+      ddraw: Gracefully handle recursive SetCooperativeLevel calls.
+      ddraw/tests: Test WM_ACTIVATEAPP messages generated by SetCooperativeLevel.
+      d3d9/tests: Add a DXT5 volume test.
+      d3d8/tests: Add a DXT5 volume test.
+      wined3d: Don't clamp texture lookups in the ARB fixed function fragment pipe.
+      wined3d: Use the ftoa helper function in the ARB shader backend.
+      ddraw/tests: Test DDCAPS2_TEXTUREMANAGE compatibility, with other flags.
+      ddraw: Create managed pool textures.
+      ddraw: Enumerate DXT2 and DXT4.
+      ddraw: Create a sysmem surface if the format is not supported.
+      wined3d: Enforce texturing capability format restrictions on resource creation.
+      wined3d: Check the format block size before creating textures.
+      d3d9/tests: Test blocked texture creation restrictions.
+      d3d8/tests: Test blocked texture creation restrictions.
+      ddraw/tests: Test blocked texture creation restrictions.
+      ddraw/tests: Test unsupported texture formats.
+      wined3d: Only invalidate STATE_INDEXBUFFER for the current context in buffer_create_buffer_object().
+      wined3d: Only invalidate STATE_INDEXBUFFER for the current context in buffer_get_sysmem().
+      wined3d: Pass the context to the main buffer preload function.
+      ddraw/tests: Don't test transformed vertices with normals.
+      d3d8/tests: Test the behavior of failing surface creation calls.
+      d3d9/tests: Test the behavior of failing surface creation calls.
+      d3d8/tests: Mark YUY2 and UYVY broken.
+      d3d9/tests: Use a plain depth stencil instead of a texture.
+      d3d9/tests: Actually accept r500 results.
+      wined3d: Pass the swizzle map to find_vs_compile_args.
+      wined3d: Pass position_transformed and gl_info to find_ps_compile_args.
+      wined3d: Pass stream info and needed fixups to buffer_find_decl.
+      wined3d: Move the decoded stream info into the context.
+      wined3d: Explicitly pass the state information to buffer_internal_preload.
+      d3d9/tests: Clean up z_range_test a bit.
+      d3d9/tests: D3DCMP_GREATER is broken on r500.
+
+Sylvain Petreolle (1):
+      wbemprox: Implement Win32_OperatingSystem.LocalDateTime.
+
+Thomas Faber (1):
+      ntdll/tests: Use correct prototype for RtlCreateUnicodeString[FromAsciiz].
+
+Vincent Povirk (2):
+      winsta: Stub WinStationRegisterConsoleNotification.
+      winsta: Stub WinStationGetAllProcesses.
 
 --
 Alexandre Julliard

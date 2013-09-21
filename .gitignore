@@ -140,6 +140,7 @@ dlls/vbscript/tests/vbsregexp55.h
 dlls/vbscript/vbscript_classes.h
 dlls/vbscript/vbsglobal.h
 dlls/vbscript/vbsregexp55.h
+dlls/wbemdisp/wbemdisp_classes.h
 dlls/wbemprox/wql.tab.c
 dlls/wbemprox/wql.tab.h
 dlls/windowscodecs/windowscodecs_wincodec.h
@@ -194,6 +195,7 @@ include/iextag.h
 include/imnact.h
 include/imnxport.h
 include/indexsrv.h
+include/inputscope.h
 include/mediaobj.h
 include/metahost.h
 include/mimeinfo.h
@@ -256,6 +258,7 @@ include/urlhist.h
 include/urlmon.h
 include/vmr9.h
 include/wbemcli.h
+include/wbemdisp.h
 include/wbemprov.h
 include/wia_lh.h
 include/wia_xp.h

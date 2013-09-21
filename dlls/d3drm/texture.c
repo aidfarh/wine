@@ -101,29 +101,26 @@ static ULONG WINAPI IDirect3DRMTexture2Impl_Release(IDirect3DRMTexture2* iface)
 }
 
 /*** IDirect3DRMObject methods ***/
-static HRESULT WINAPI IDirect3DRMTexture2Impl_Clone(IDirect3DRMTexture2* iface,
-                                                    LPUNKNOWN unknown, REFIID riid,
-                                                    LPVOID* object)
+static HRESULT WINAPI IDirect3DRMTexture2Impl_Clone(IDirect3DRMTexture2 *iface,
+        IUnknown *outer, REFIID iid, void **out)
 {
-    FIXME("(%p)->(%p, %s, %p): stub\n", iface, unknown, debugstr_guid(riid), object);
+    FIXME("iface %p, outer %p, iid %s, out %p stub!\n", iface, outer, debugstr_guid(iid), out);
 
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI IDirect3DRMTexture2Impl_AddDestroyCallback(IDirect3DRMTexture2* iface,
-                                                                 D3DRMOBJECTCALLBACK cb,
-                                                                 LPVOID argument)
+static HRESULT WINAPI IDirect3DRMTexture2Impl_AddDestroyCallback(IDirect3DRMTexture2 *iface,
+        D3DRMOBJECTCALLBACK cb, void *ctx)
 {
-    FIXME("(%p)->(%p, %p): stub\n", iface, cb, argument);
+    FIXME("iface %p, cb %p, ctx %p stub!\n", iface, cb, ctx);
 
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI IDirect3DRMTexture2Impl_DeleteDestroyCallback(IDirect3DRMTexture2* iface,
-                                                                    D3DRMOBJECTCALLBACK cb,
-                                                                    LPVOID argument)
+static HRESULT WINAPI IDirect3DRMTexture2Impl_DeleteDestroyCallback(IDirect3DRMTexture2 *iface,
+        D3DRMOBJECTCALLBACK cb, void *ctx)
 {
-    FIXME("(%p)->(%p, %p): stub\n", iface, cb, argument);
+    FIXME("iface %p, cb %p, ctx %p stub!\n", iface, cb, ctx);
 
     return E_NOTIMPL;
 }
@@ -147,29 +144,27 @@ static DWORD WINAPI IDirect3DRMTexture2Impl_GetAppData(IDirect3DRMTexture2* ifac
     return IDirect3DRMTexture3_GetAppData(&This->IDirect3DRMTexture3_iface);
 }
 
-static HRESULT WINAPI IDirect3DRMTexture2Impl_SetName(IDirect3DRMTexture2* iface, LPCSTR name)
+static HRESULT WINAPI IDirect3DRMTexture2Impl_SetName(IDirect3DRMTexture2 *iface, const char *name)
 {
-    FIXME("(%p)->(%s): stub\n", iface, name);
+    FIXME("iface %p, name %s stub!\n", iface, debugstr_a(name));
 
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI IDirect3DRMTexture2Impl_GetName(IDirect3DRMTexture2* iface,
-                                                      LPDWORD size, LPSTR name)
+static HRESULT WINAPI IDirect3DRMTexture2Impl_GetName(IDirect3DRMTexture2 *iface, DWORD *size, char *name)
 {
-    FIXME("(%p)->(%p, %p): stub\n", iface, size, name);
+    FIXME("iface %p, size %p, name %p stub!\n", iface, size, name);
 
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI IDirect3DRMTexture2Impl_GetClassName(IDirect3DRMTexture2* iface,
-                                                           LPDWORD size, LPSTR name)
+static HRESULT WINAPI IDirect3DRMTexture2Impl_GetClassName(IDirect3DRMTexture2 *iface, DWORD *size, char *name)
 {
-    IDirect3DRMTextureImpl *This = impl_from_IDirect3DRMTexture2(iface);
+    IDirect3DRMTextureImpl *texture = impl_from_IDirect3DRMTexture2(iface);
 
-    TRACE("(%p/%p)->(%p, %p)\n", iface, This, size, name);
+    TRACE("iface %p, size %p, name %p.\n", iface, size, name);
 
-    return IDirect3DRMTexture3_GetClassName(&This->IDirect3DRMTexture3_iface, size, name);
+    return IDirect3DRMTexture3_GetClassName(&texture->IDirect3DRMTexture3_iface, size, name);
 }
 
 /*** IDirect3DRMTexture3 methods ***/
@@ -355,12 +350,11 @@ static HRESULT WINAPI IDirect3DRMTexture2Impl_InitFromImage(IDirect3DRMTexture2 
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI IDirect3DRMTexture2Impl_InitFromResource2(IDirect3DRMTexture2* iface, HMODULE module,
-                                                               LPCSTR /* LPCTSTR */ name, LPCSTR /* LPCTSTR */ type)
+static HRESULT WINAPI IDirect3DRMTexture2Impl_InitFromResource2(IDirect3DRMTexture2 *iface,
+        HMODULE module, const char *name, const char *type)
 {
-    IDirect3DRMTextureImpl *This = impl_from_IDirect3DRMTexture2(iface);
-
-    FIXME("(%p/%p)->(%p, %s, %s): stub\n", iface, This, module, debugstr_a(name), debugstr_a(type));
+    FIXME("iface %p, module %p, name %s, type %s stub!\n",
+            iface, module, debugstr_a(name), debugstr_a(type));
 
     return E_NOTIMPL;
 }
@@ -470,29 +464,26 @@ static ULONG WINAPI IDirect3DRMTexture3Impl_Release(IDirect3DRMTexture3* iface)
 }
 
 /*** IDirect3DRMObject methods ***/
-static HRESULT WINAPI IDirect3DRMTexture3Impl_Clone(IDirect3DRMTexture3* iface,
-                                                     LPUNKNOWN unknown, REFIID riid,
-                                                     LPVOID* object)
+static HRESULT WINAPI IDirect3DRMTexture3Impl_Clone(IDirect3DRMTexture3 *iface,
+        IUnknown *outer, REFIID iid, void **out)
 {
-    FIXME("(%p)->(%p, %s, %p): stub\n", iface, unknown, debugstr_guid(riid), object);
+    FIXME("iface %p, outer %p, iid %s, out %p stub!\n", iface, outer, debugstr_guid(iid), out);
 
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI IDirect3DRMTexture3Impl_AddDestroyCallback(IDirect3DRMTexture3* iface,
-                                                                  D3DRMOBJECTCALLBACK cb,
-                                                                  LPVOID argument)
+static HRESULT WINAPI IDirect3DRMTexture3Impl_AddDestroyCallback(IDirect3DRMTexture3 *iface,
+        D3DRMOBJECTCALLBACK cb, void *ctx)
 {
-    FIXME("(%p)->(%p, %p): stub\n", iface, cb, argument);
+    FIXME("iface %p, cb %p, ctx %p stub!\n", iface, cb, ctx);
 
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI IDirect3DRMTexture3Impl_DeleteDestroyCallback(IDirect3DRMTexture3* iface,
-                                                                     D3DRMOBJECTCALLBACK cb,
-                                                                     LPVOID argument)
+static HRESULT WINAPI IDirect3DRMTexture3Impl_DeleteDestroyCallback(IDirect3DRMTexture3 *iface,
+        D3DRMOBJECTCALLBACK cb, void *ctx)
 {
-    FIXME("(%p)->(%p, %p): stub\n", iface, cb, argument);
+    FIXME("iface %p, cb %p, ctx %p stub!\n", iface, cb, ctx);
 
     return E_NOTIMPL;
 }
@@ -518,27 +509,23 @@ static DWORD WINAPI IDirect3DRMTexture3Impl_GetAppData(IDirect3DRMTexture3* ifac
     return This->app_data;
 }
 
-static HRESULT WINAPI IDirect3DRMTexture3Impl_SetName(IDirect3DRMTexture3* iface, LPCSTR name)
+static HRESULT WINAPI IDirect3DRMTexture3Impl_SetName(IDirect3DRMTexture3 *iface, const char *name)
 {
-    FIXME("(%p)->(%s): stub\n", iface, name);
+    FIXME("iface %p, name %s stub!\n", iface, debugstr_a(name));
 
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI IDirect3DRMTexture3Impl_GetName(IDirect3DRMTexture3* iface,
-                                                       LPDWORD size, LPSTR name)
+static HRESULT WINAPI IDirect3DRMTexture3Impl_GetName(IDirect3DRMTexture3 *iface, DWORD *size, char *name)
 {
-    FIXME("(%p)->(%p, %p): stub\n", iface, size, name);
+    FIXME("iface %p, size %p, name %p stub!\n", iface, size, name);
 
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI IDirect3DRMTexture3Impl_GetClassName(IDirect3DRMTexture3* iface,
-                                                           LPDWORD size, LPSTR name)
+static HRESULT WINAPI IDirect3DRMTexture3Impl_GetClassName(IDirect3DRMTexture3 *iface, DWORD *size, char *name)
 {
-    IDirect3DRMTextureImpl *This = impl_from_IDirect3DRMTexture3(iface);
-
-    TRACE("(%p/%p)->(%p, %p)\n", iface, This, size, name);
+    TRACE("iface %p, size %p, name %p.\n", iface, size, name);
 
     if (!size || *size < strlen("Texture") || !name)
         return E_INVALIDARG;
@@ -578,11 +565,10 @@ static HRESULT WINAPI IDirect3DRMTexture3Impl_InitFromResource(IDirect3DRMTextur
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI IDirect3DRMTexture3Impl_Changed(IDirect3DRMTexture3* iface, DWORD flags, DWORD nb_rects, LPRECT rects)
+static HRESULT WINAPI IDirect3DRMTexture3Impl_Changed(IDirect3DRMTexture3 *iface,
+        DWORD flags, DWORD rect_count, RECT *rects)
 {
-    IDirect3DRMTextureImpl *This = impl_from_IDirect3DRMTexture3(iface);
-
-    FIXME("(%p/%p)->(%x, %u, %p): stub\n", iface, This, flags, nb_rects, rects);
+    FIXME("iface %p, flags %#x, rect_count %u, rects %p stub!\n", iface, flags, rect_count, rects);
 
     return E_NOTIMPL;
 }
@@ -731,12 +717,11 @@ static HRESULT WINAPI IDirect3DRMTexture3Impl_InitFromImage(IDirect3DRMTexture3 
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI IDirect3DRMTexture3Impl_InitFromResource2(IDirect3DRMTexture3* iface, HMODULE module,
-                                                               LPCSTR /* LPCTSTR */ name, LPCSTR /* LPCTSTR */ type)
+static HRESULT WINAPI IDirect3DRMTexture3Impl_InitFromResource2(IDirect3DRMTexture3 *iface,
+        HMODULE module, const char *name, const char *type)
 {
-    IDirect3DRMTextureImpl *This = impl_from_IDirect3DRMTexture3(iface);
-
-    FIXME("(%p/%p)->(%p, %s, %s): stub\n", iface, This, module, debugstr_a(name), debugstr_a(type));
+    FIXME("iface %p, module %p, name %s, type %s stub!\n",
+            iface, module, debugstr_a(name), debugstr_a(type));
 
     return E_NOTIMPL;
 }
@@ -769,29 +754,26 @@ static HRESULT WINAPI IDirect3DRMTexture3Impl_SetCacheOptions(IDirect3DRMTexture
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI IDirect3DRMTexture3Impl_GetCacheOptions(IDirect3DRMTexture3* iface, LPLONG importance, LPDWORD flags)
+static HRESULT WINAPI IDirect3DRMTexture3Impl_GetCacheOptions(IDirect3DRMTexture3 *iface,
+        LONG *importance, DWORD *flags)
 {
-    IDirect3DRMTextureImpl *This = impl_from_IDirect3DRMTexture3(iface);
-
-    FIXME("(%p/%p)->(%p, %p): stub\n", iface, This, importance, flags);
+    FIXME("iface %p, importance %p, flags %p stub!\n", iface, importance, flags);
 
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI IDirect3DRMTexture3Impl_SetDownsampleCallback(IDirect3DRMTexture3* iface, D3DRMDOWNSAMPLECALLBACK callback, LPVOID arg)
+static HRESULT WINAPI IDirect3DRMTexture3Impl_SetDownsampleCallback(IDirect3DRMTexture3 *iface,
+        D3DRMDOWNSAMPLECALLBACK cb, void *ctx)
 {
-    IDirect3DRMTextureImpl *This = impl_from_IDirect3DRMTexture3(iface);
-
-    FIXME("(%p/%p)->(%p, %p): stub\n", iface, This, callback, arg);
+    FIXME("iface %p, cb %p, ctx %p stub!\n", iface, cb, ctx);
 
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI IDirect3DRMTexture3Impl_SetValidationCallback(IDirect3DRMTexture3* iface, D3DRMVALIDATIONCALLBACK callback, LPVOID arg)
+static HRESULT WINAPI IDirect3DRMTexture3Impl_SetValidationCallback(IDirect3DRMTexture3 *iface,
+        D3DRMVALIDATIONCALLBACK cb, void *ctx)
 {
-    IDirect3DRMTextureImpl *This = impl_from_IDirect3DRMTexture3(iface);
-
-    FIXME("(%p/%p)->(%p, %p): stub\n", iface, This, callback, arg);
+    FIXME("iface %p, cb %p, ctx %p stub!\n", iface, cb, ctx);
 
     return E_NOTIMPL;
 }

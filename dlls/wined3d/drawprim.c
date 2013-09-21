@@ -83,7 +83,7 @@ static void drawStridedFast(const struct wined3d_gl_info *gl_info, GLenum primit
  */
 
 /* Context activation is done by the caller. */
-static void drawStridedSlow(const struct wined3d_device *device, const struct wined3d_context *context,
+static void drawStridedSlow(const struct wined3d_device *device, struct wined3d_context *context,
         const struct wined3d_stream_info *si, UINT NumVertexes, GLenum glPrimType,
         const void *idxData, UINT idxSize, UINT startIdx)
 {
@@ -91,7 +91,7 @@ static void drawStridedSlow(const struct wined3d_device *device, const struct wi
     const WORD                *pIdxBufS     = NULL;
     const DWORD               *pIdxBufL     = NULL;
     UINT vx_index;
-    const struct wined3d_state *state = &device->stateBlock->state;
+    const struct wined3d_state *state = &device->state;
     LONG SkipnStrides = startIdx;
     BOOL pixelShader = use_ps(state);
     BOOL specular_fog = FALSE;
@@ -99,6 +99,7 @@ static void drawStridedSlow(const struct wined3d_device *device, const struct wi
     const BYTE *diffuse = NULL, *specular = NULL, *normal = NULL, *position = NULL;
     const struct wined3d_gl_info *gl_info = context->gl_info;
     const struct wined3d_d3d_info *d3d_info = context->d3d_info;
+    const struct wined3d_ffp_attrib_ops *ops = &d3d_info->ffp_attrib_ops;
     UINT texture_stages = d3d_info->limits.ffp_blend_stages;
     const struct wined3d_stream_info_element *element;
     UINT num_untracked_materials;
@@ -114,7 +115,7 @@ static void drawStridedSlow(const struct wined3d_device *device, const struct wi
          * supported or other reason), or with user pointer drawing idxData
          * will be non-NULL. */
         if (!idxData)
-            idxData = buffer_get_sysmem(state->index_buffer, gl_info);
+            idxData = buffer_get_sysmem(state->index_buffer, context);
 
         if (idxSize == 2) pIdxBufS = idxData;
         else pIdxBufL = idxData;
@@ -266,15 +267,16 @@ static void drawStridedSlow(const struct wined3d_device *device, const struct wi
             ptr = texCoords[coord_idx] + (SkipnStrides * si->elements[WINED3D_FFP_TEXCOORD0 + coord_idx].stride);
 
             texture_idx = device->texUnitMap[texture];
-            multi_texcoord_funcs[si->elements[WINED3D_FFP_TEXCOORD0 + coord_idx].format->emit_idx](
+            ops->texcoord[si->elements[WINED3D_FFP_TEXCOORD0 + coord_idx].format->emit_idx](
                     GL_TEXTURE0_ARB + texture_idx, ptr);
         }
 
         /* Diffuse -------------------------------- */
-        if (diffuse) {
+        if (diffuse)
+        {
             const void *ptrToCoords = diffuse + SkipnStrides * si->elements[WINED3D_FFP_DIFFUSE].stride;
+            ops->diffuse[si->elements[WINED3D_FFP_DIFFUSE].format->emit_idx](ptrToCoords);
 
-            diffuse_funcs[si->elements[WINED3D_FFP_DIFFUSE].format->emit_idx](ptrToCoords);
             if (num_untracked_materials)
             {
                 DWORD diffuseColor = ((const DWORD *)ptrToCoords)[0];
@@ -294,10 +296,10 @@ static void drawStridedSlow(const struct wined3d_device *device, const struct wi
         }
 
         /* Specular ------------------------------- */
-        if (specular) {
+        if (specular)
+        {
             const void *ptrToCoords = specular + SkipnStrides * si->elements[WINED3D_FFP_SPECULAR].stride;
-
-            specular_funcs[si->elements[WINED3D_FFP_SPECULAR].format->emit_idx](ptrToCoords);
+            ops->specular[si->elements[WINED3D_FFP_SPECULAR].format->emit_idx](ptrToCoords);
 
             if (specular_fog)
             {
@@ -310,13 +312,14 @@ static void drawStridedSlow(const struct wined3d_device *device, const struct wi
         if (normal)
         {
             const void *ptrToCoords = normal + SkipnStrides * si->elements[WINED3D_FFP_NORMAL].stride;
-            normal_funcs[si->elements[WINED3D_FFP_NORMAL].format->emit_idx](ptrToCoords);
+            ops->normal[si->elements[WINED3D_FFP_NORMAL].format->emit_idx](ptrToCoords);
         }
 
         /* Position -------------------------------- */
-        if (position) {
+        if (position)
+        {
             const void *ptrToCoords = position + SkipnStrides * si->elements[WINED3D_FFP_POSITION].stride;
-            position_funcs[si->elements[WINED3D_FFP_POSITION].format->emit_idx](ptrToCoords);
+            ops->position[si->elements[WINED3D_FFP_POSITION].format->emit_idx](ptrToCoords);
         }
 
         /* For non indexed mode, step onto next parts */
@@ -438,10 +441,11 @@ static inline void send_attribute(const struct wined3d_gl_info *gl_info,
 }
 
 /* Context activation is done by the caller. */
-static void drawStridedSlowVs(const struct wined3d_gl_info *gl_info, const struct wined3d_state *state,
+static void drawStridedSlowVs(struct wined3d_context *context, const struct wined3d_state *state,
         const struct wined3d_stream_info *si, UINT numberOfVertices, GLenum glPrimitiveType,
         const void *idxData, UINT idxSize, UINT startIdx)
 {
+    const struct wined3d_gl_info *gl_info = context->gl_info;
     LONG SkipnStrides = startIdx + state->load_base_vertex_index;
     const DWORD *pIdxBufL = NULL;
     const WORD *pIdxBufS = NULL;
@@ -456,7 +460,7 @@ static void drawStridedSlowVs(const struct wined3d_gl_info *gl_info, const struc
          * supported or other reason), or with user pointer drawing idxData
          * will be non-NULL. */
         if (!idxData)
-            idxData = buffer_get_sysmem(state->index_buffer, gl_info);
+            idxData = buffer_get_sysmem(state->index_buffer, context);
 
         if (idxSize == 2) pIdxBufS = idxData;
         else pIdxBufL = idxData;
@@ -494,10 +498,11 @@ static void drawStridedSlowVs(const struct wined3d_gl_info *gl_info, const struc
 }
 
 /* Context activation is done by the caller. */
-static void drawStridedInstanced(const struct wined3d_gl_info *gl_info, const struct wined3d_state *state,
+static void drawStridedInstanced(struct wined3d_context *context, const struct wined3d_state *state,
         const struct wined3d_stream_info *si, UINT numberOfVertices, GLenum glPrimitiveType,
         const void *idxData, UINT idxSize, UINT startIdx, UINT base_vertex_index, UINT instance_count)
 {
+    const struct wined3d_gl_info *gl_info = context->gl_info;
     int numInstancedAttribs = 0, j;
     UINT instancedData[sizeof(si->elements) / sizeof(*si->elements) /* 16 */];
     GLenum idxtype = idxSize == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT;
@@ -535,7 +540,7 @@ static void drawStridedInstanced(const struct wined3d_gl_info *gl_info, const st
             if (si->elements[instancedData[j]].data.buffer_object)
             {
                 struct wined3d_buffer *vb = state->streams[si->elements[instancedData[j]].stream_idx].buffer;
-                ptr += (ULONG_PTR)buffer_get_sysmem(vb, gl_info);
+                ptr += (ULONG_PTR)buffer_get_sysmem(vb, context);
             }
 
             send_attribute(gl_info, si->elements[instancedData[j]].format->id, instancedData[j], ptr);
@@ -556,7 +561,7 @@ static void drawStridedInstanced(const struct wined3d_gl_info *gl_info, const st
     }
 }
 
-static void remove_vbos(const struct wined3d_gl_info *gl_info,
+static void remove_vbos(struct wined3d_context *context,
         const struct wined3d_state *state, struct wined3d_stream_info *s)
 {
     unsigned int i;
@@ -572,7 +577,7 @@ static void remove_vbos(const struct wined3d_gl_info *gl_info,
         {
             struct wined3d_buffer *vb = state->streams[e->stream_idx].buffer;
             e->data.buffer_object = 0;
-            e->data.addr = (BYTE *)((ULONG_PTR)e->data.addr + (ULONG_PTR)buffer_get_sysmem(vb, gl_info));
+            e->data.addr = (BYTE *)((ULONG_PTR)e->data.addr + (ULONG_PTR)buffer_get_sysmem(vb, context));
         }
     }
 }
@@ -581,7 +586,7 @@ static void remove_vbos(const struct wined3d_gl_info *gl_info,
 void draw_primitive(struct wined3d_device *device, UINT start_idx, UINT index_count,
         UINT start_instance, UINT instance_count, BOOL indexed)
 {
-    const struct wined3d_state *state = &device->stateBlock->state;
+    const struct wined3d_state *state = &device->state;
     const struct wined3d_stream_info *stream_info;
     struct wined3d_event_query *ib_query = NULL;
     struct wined3d_stream_info si_emulated;
@@ -603,7 +608,7 @@ void draw_primitive(struct wined3d_device *device, UINT start_idx, UINT index_co
             if (target)
             {
                 surface_load_location(target, target->draw_binding, NULL);
-                surface_modify_location(target, target->draw_binding, TRUE);
+                surface_invalidate_location(target, ~target->draw_binding);
             }
         }
     }
@@ -673,7 +678,7 @@ void draw_primitive(struct wined3d_device *device, UINT start_idx, UINT index_co
         FIXME("Point sprite coordinate origin switching not supported.\n");
     }
 
-    stream_info = &device->stream_info;
+    stream_info = &context->stream_info;
     if (device->instance_count)
         instance_count = device->instance_count;
 
@@ -723,13 +728,13 @@ void draw_primitive(struct wined3d_device *device, UINT start_idx, UINT index_co
 
         if (emulation)
         {
-            si_emulated = device->stream_info;
-            remove_vbos(gl_info, state, &si_emulated);
+            si_emulated = context->stream_info;
+            remove_vbos(context, state, &si_emulated);
             stream_info = &si_emulated;
         }
     }
 
-    if (device->useDrawStridedSlow || emulation)
+    if (context->use_immediate_mode_draw || emulation)
     {
         /* Immediate mode drawing. */
         if (use_vs(state))
@@ -741,7 +746,7 @@ void draw_primitive(struct wined3d_device *device, UINT start_idx, UINT index_co
             else
                 WARN_(d3d_perf)("Using immediate mode with vertex shaders for half float emulation.\n");
 
-            drawStridedSlowVs(gl_info, state, stream_info, index_count,
+            drawStridedSlowVs(context, state, stream_info, index_count,
                     state->gl_primitive_type, idx_data, idx_size, start_idx);
         }
         else
@@ -753,7 +758,7 @@ void draw_primitive(struct wined3d_device *device, UINT start_idx, UINT index_co
     else if (!gl_info->supported[ARB_INSTANCED_ARRAYS] && instance_count)
     {
         /* Instancing emulation by mixing immediate mode and arrays. */
-        drawStridedInstanced(gl_info, state, stream_info, index_count, state->gl_primitive_type,
+        drawStridedInstanced(context, state, stream_info, index_count, state->gl_primitive_type,
                 idx_data, idx_size, start_idx, state->base_vertex_index, instance_count);
     }
     else
@@ -764,9 +769,9 @@ void draw_primitive(struct wined3d_device *device, UINT start_idx, UINT index_co
 
     if (ib_query)
         wined3d_event_query_issue(ib_query, device);
-    for (i = 0; i < device->num_buffer_queries; ++i)
+    for (i = 0; i < context->num_buffer_queries; ++i)
     {
-        wined3d_event_query_issue(device->buffer_queries[i], device);
+        wined3d_event_query_issue(context->buffer_queries[i], device);
     }
 
     if (wined3d_settings.strict_draw_ordering)

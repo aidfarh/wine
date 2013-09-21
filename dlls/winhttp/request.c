@@ -1270,12 +1270,14 @@ static BOOL query_auth_schemes( request_t *request, DWORD level, LPDWORD support
             return FALSE;
         }
         scheme = auth_scheme_from_header( buffer );
+        heap_free( buffer );
+        if (!scheme) break;
+
         if (first && index == 1)
             *first = *supported = scheme;
         else
             *supported |= scheme;
 
-        heap_free( buffer );
         ret = TRUE;
     }
     return ret;
@@ -1301,6 +1303,13 @@ BOOL WINAPI WinHttpQueryAuthSchemes( HINTERNET hrequest, LPDWORD supported, LPDW
         release_object( &request->hdr );
         set_last_error( ERROR_WINHTTP_INCORRECT_HANDLE_TYPE );
         return FALSE;
+    }
+    if (!supported || !first || !target)
+    {
+        release_object( &request->hdr );
+        set_last_error( ERROR_INVALID_PARAMETER );
+        return FALSE;
+
     }
 
     if (query_auth_schemes( request, WINHTTP_QUERY_WWW_AUTHENTICATE, supported, first ))
@@ -1375,7 +1384,7 @@ static unsigned int decode_base64( const WCHAR *base64, unsigned int len, char *
     char c0, c1, c2, c3;
     const WCHAR *p = base64;
 
-    while (len >= 4)
+    while (len > 4)
     {
         if ((c0 = decode_char( p[0] )) > 63) return 0;
         if ((c1 = decode_char( p[1] )) > 63) return 0;
@@ -1412,6 +1421,21 @@ static unsigned int decode_base64( const WCHAR *base64, unsigned int len, char *
             buf[i + 1] = (c1 << 4) | (c2 >> 2);
         }
         i += 2;
+    }
+    else
+    {
+        if ((c0 = decode_char( p[0] )) > 63) return 0;
+        if ((c1 = decode_char( p[1] )) > 63) return 0;
+        if ((c2 = decode_char( p[2] )) > 63) return 0;
+        if ((c3 = decode_char( p[3] )) > 63) return 0;
+
+        if (buf)
+        {
+            buf[i + 0] = (c0 << 2) | (c1 >> 4);
+            buf[i + 1] = (c1 << 4) | (c2 >> 2);
+            buf[i + 2] = (c2 << 6) |  c3;
+        }
+        i += 3;
     }
     return i;
 }
@@ -1668,7 +1692,8 @@ static BOOL do_authorization( request_t *request, DWORD target, DWORD scheme_fla
 static BOOL set_credentials( request_t *request, DWORD target, DWORD scheme, const WCHAR *username,
                              const WCHAR *password )
 {
-    if (!username || !password)
+    if ((scheme == WINHTTP_AUTH_SCHEME_BASIC || scheme == WINHTTP_AUTH_SCHEME_DIGEST) &&
+        (!username || !password))
     {
         set_last_error( ERROR_INVALID_PARAMETER );
         return FALSE;
@@ -1678,17 +1703,23 @@ static BOOL set_credentials( request_t *request, DWORD target, DWORD scheme, con
     case WINHTTP_AUTH_TARGET_SERVER:
     {
         heap_free( request->connect->username );
-        if (!(request->connect->username = strdupW( username ))) return FALSE;
+        if (!username) request->connect->username = NULL;
+        else if (!(request->connect->username = strdupW( username ))) return FALSE;
+
         heap_free( request->connect->password );
-        if (!(request->connect->password = strdupW( password ))) return FALSE;
+        if (!password) request->connect->password = NULL;
+        else if (!(request->connect->password = strdupW( password ))) return FALSE;
         break;
     }
     case WINHTTP_AUTH_TARGET_PROXY:
     {
         heap_free( request->connect->session->proxy_username );
-        if (!(request->connect->session->proxy_username = strdupW( username ))) return FALSE;
+        if (!username) request->connect->session->proxy_username = NULL;
+        else if (!(request->connect->session->proxy_username = strdupW( username ))) return FALSE;
+
         heap_free( request->connect->session->proxy_password );
-        if (!(request->connect->session->proxy_password = strdupW( password ))) return FALSE;
+        if (!password) request->connect->session->proxy_password = NULL;
+        else if (!(request->connect->session->proxy_password = strdupW( password ))) return FALSE;
         break;
     }
     default:

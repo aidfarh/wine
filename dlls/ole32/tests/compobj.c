@@ -55,6 +55,14 @@ static void   (WINAPI *pReleaseActCtx)(HANDLE);
 
 static const CLSID CLSID_non_existent =   { 0x12345678, 0x1234, 0x1234, { 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0 } };
 static const CLSID CLSID_StdFont = { 0x0be35203, 0x8f91, 0x11ce, { 0x9d, 0xe3, 0x00, 0xaa, 0x00, 0x4b, 0xb8, 0x51 } };
+static const GUID IID_Testiface = { 0x22222222, 0x1234, 0x1234, { 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0 } };
+static const GUID IID_Testiface2 = { 0x32222222, 0x1234, 0x1234, { 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0 } };
+static const GUID IID_Testiface3 = { 0x42222222, 0x1234, 0x1234, { 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0 } };
+static const GUID IID_Testiface4 = { 0x52222222, 0x1234, 0x1234, { 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0 } };
+static const GUID IID_Testiface5 = { 0x62222222, 0x1234, 0x1234, { 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0 } };
+static const GUID IID_Testiface6 = { 0x72222222, 0x1234, 0x1234, { 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0 } };
+static const GUID IID_TestPS = { 0x66666666, 0x8888, 0x7777, { 0x66, 0x66, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55 } };
+
 static WCHAR stdfont[] = {'S','t','d','F','o','n','t',0};
 static const WCHAR wszNonExistent[] = {'N','o','n','E','x','i','s','t','e','n','t',0};
 static WCHAR wszCLSID_StdFont[] =
@@ -64,19 +72,8 @@ static WCHAR wszCLSID_StdFont[] =
 };
 static const WCHAR progidW[] = {'P','r','o','g','I','d','.','P','r','o','g','I','d',0};
 
-static const IID IID_IWineTest =
-{
-    0x5201163f,
-    0x8164,
-    0x4fd0,
-    {0xa1, 0xa2, 0x5d, 0x5a, 0x36, 0x54, 0xd3, 0xbd}
-}; /* 5201163f-8164-4fd0-a1a2-5d5a3654d3bd */
-static const CLSID CLSID_WineOOPTest = {
-    0x5201163f,
-    0x8164,
-    0x4fd0,
-    {0xa1, 0xa2, 0x5d, 0x5a, 0x36, 0x54, 0xd3, 0xbd}
-}; /* 5201163f-8164-4fd0-a1a2-5d5a3654d3bd */
+DEFINE_GUID(IID_IWineTest, 0x5201163f, 0x8164, 0x4fd0, 0xa1, 0xa2, 0x5d, 0x5a, 0x36, 0x54, 0xd3, 0xbd);
+DEFINE_GUID(CLSID_WineOOPTest, 0x5201163f, 0x8164, 0x4fd0, 0xa1, 0xa2, 0x5d, 0x5a, 0x36, 0x54, 0xd3, 0xbd);
 
 static const char *debugstr_guid(REFIID riid)
 {
@@ -231,9 +228,48 @@ static const char actctx_manifest[] =
 "    <comClass description=\"Test com class\""
 "              clsid=\"{12345678-1234-1234-1234-56789abcdef0}\""
 "              progid=\"ProgId.ProgId\""
+"              miscStatusIcon=\"recomposeonresize\""
+"    />"
+"    <comClass clsid=\"{0be35203-8f91-11ce-9de3-00aa004bb851}\""
+"              progid=\"CustomFont\""
+"              miscStatusIcon=\"recomposeonresize\""
+"              miscStatusContent=\"insideout\""
+"    />"
+"    <comClass clsid=\"{0be35203-8f91-11ce-9de3-00aa004bb852}\""
+"              progid=\"StdFont\""
+"    />"
+"    <comClass clsid=\"{62222222-1234-1234-1234-56789abcdef0}\" >"
+"        <progid>ProgId.ProgId.1</progid>"
+"    </comClass>"
+"    <comInterfaceProxyStub "
+"        name=\"Iifaceps\""
+"        iid=\"{22222222-1234-1234-1234-56789abcdef0}\""
+"        proxyStubClsid32=\"{66666666-8888-7777-6666-555555555555}\""
 "    />"
 "</file>"
+"    <comInterfaceExternalProxyStub "
+"        name=\"Iifaceps2\""
+"        iid=\"{32222222-1234-1234-1234-56789abcdef0}\""
+"    />"
+"    <comInterfaceExternalProxyStub "
+"        name=\"Iifaceps3\""
+"        iid=\"{42222222-1234-1234-1234-56789abcdef0}\""
+"        proxyStubClsid32=\"{66666666-8888-7777-6666-555555555555}\""
+"    />"
+"    <comInterfaceExternalProxyStub "
+"        name=\"Iifaceps4\""
+"        iid=\"{52222222-1234-1234-1234-56789abcdef0}\""
+"        proxyStubClsid32=\"{00000000-0000-0000-0000-000000000000}\""
+"    />"
+"    <clrClass "
+"        clsid=\"{72222222-1234-1234-1234-56789abcdef0}\""
+"        name=\"clrclass\""
+"    >"
+"        <progid>clrprogid.1</progid>"
+"    </clrClass>"
 "</assembly>";
+
+DEFINE_GUID(CLSID_Testclass, 0x12345678, 0x1234, 0x1234, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0);
 
 static void test_ProgIDFromCLSID(void)
 {
@@ -260,6 +296,8 @@ static void test_ProgIDFromCLSID(void)
 
     if ((handle = activate_context(actctx_manifest, &cookie)))
     {
+        static const WCHAR customfontW[] = {'C','u','s','t','o','m','F','o','n','t',0};
+
         hr = ProgIDFromCLSID(&CLSID_non_existent, &progid);
 todo_wine
         ok(hr == S_OK, "got 0x%08x\n", hr);
@@ -268,6 +306,21 @@ todo_wine
             ok(!lstrcmpiW(progid, progidW), "got %s\n", wine_dbgstr_w(progid));
             CoTaskMemFree(progid);
         }
+
+        /* try something registered and redirected */
+        progid = NULL;
+        hr = ProgIDFromCLSID(&CLSID_StdFont, &progid);
+        ok(hr == S_OK, "got 0x%08x\n", hr);
+todo_wine
+        ok(!lstrcmpiW(progid, customfontW), "got wrong progid %s\n", wine_dbgstr_w(progid));
+        CoTaskMemFree(progid);
+
+        /* classes without default progid, progid list is not used */
+        hr = ProgIDFromCLSID(&IID_Testiface5, &progid);
+        ok(hr == REGDB_E_CLASSNOTREG, "got 0x%08x\n", hr);
+
+        hr = ProgIDFromCLSID(&IID_Testiface6, &progid);
+        ok(hr == REGDB_E_CLASSNOTREG, "got 0x%08x\n", hr);
 
         pDeactivateActCtx(0, cookie);
         pReleaseActCtx(handle);
@@ -308,6 +361,8 @@ static void test_CLSIDFromProgID(void)
 
     if ((handle = activate_context(actctx_manifest, &cookie)))
     {
+        GUID clsid1;
+
         clsid = CLSID_NULL;
         hr = CLSIDFromProgID(progidW, &clsid);
 todo_wine
@@ -316,6 +371,17 @@ todo_wine
             /* it returns generated CLSID here */
             ok(!IsEqualCLSID(&clsid, &CLSID_non_existent) && !IsEqualCLSID(&clsid, &CLSID_NULL),
                 "got wrong clsid %s\n", debugstr_guid(&clsid));
+
+        /* duplicate progid present in context - returns generated guid here too */
+        clsid = CLSID_NULL;
+        hr = CLSIDFromProgID(stdfont, &clsid);
+        ok(hr == S_OK, "got 0x%08x\n", hr);
+        clsid1 = CLSID_StdFont;
+        /* that's where it differs from StdFont */
+        clsid1.Data4[7] = 0x52;
+todo_wine
+        ok(!IsEqualCLSID(&clsid, &CLSID_StdFont) && !IsEqualCLSID(&clsid, &CLSID_NULL) && !IsEqualCLSID(&clsid, &clsid1),
+            "got %s\n", debugstr_guid(&clsid));
 
         pDeactivateActCtx(0, cookie);
         pReleaseActCtx(handle);
@@ -881,6 +947,8 @@ static void test_CoRegisterPSClsid(void)
 
 static void test_CoGetPSClsid(void)
 {
+    ULONG_PTR cookie;
+    HANDLE handle;
     HRESULT hr;
     CLSID clsid;
     HKEY hkey;
@@ -929,6 +997,38 @@ static void test_CoGetPSClsid(void)
     ok(!res, "RegOverridePredefKey returned %d\n", res);
 
     RegCloseKey(hkey);
+
+    /* not registered CLSID */
+    hr = CoGetPSClsid(&IID_Testiface, &clsid);
+    ok(hr == REGDB_E_IIDNOTREG, "got 0x%08x\n", hr);
+
+    if ((handle = activate_context(actctx_manifest, &cookie)))
+    {
+todo_wine {
+        memset(&clsid, 0, sizeof(clsid));
+        hr = CoGetPSClsid(&IID_Testiface, &clsid);
+        ok(hr == S_OK, "got 0x%08x\n", hr);
+        ok(IsEqualGUID(&clsid, &IID_Testiface), "got clsid %s\n", debugstr_guid(&clsid));
+
+        memset(&clsid, 0, sizeof(clsid));
+        hr = CoGetPSClsid(&IID_Testiface2, &clsid);
+        ok(hr == S_OK, "got 0x%08x\n", hr);
+        ok(IsEqualGUID(&clsid, &IID_Testiface2), "got clsid %s\n", debugstr_guid(&clsid));
+
+        memset(&clsid, 0, sizeof(clsid));
+        hr = CoGetPSClsid(&IID_Testiface3, &clsid);
+        ok(hr == S_OK, "got 0x%08x\n", hr);
+        ok(IsEqualGUID(&clsid, &IID_TestPS), "got clsid %s\n", debugstr_guid(&clsid));
+
+        memset(&clsid, 0xaa, sizeof(clsid));
+        hr = CoGetPSClsid(&IID_Testiface4, &clsid);
+        ok(hr == S_OK, "got 0x%08x\n", hr);
+        ok(IsEqualGUID(&clsid, &GUID_NULL), "got clsid %s\n", debugstr_guid(&clsid));
+}
+        pDeactivateActCtx(0, cookie);
+        pReleaseActCtx(handle);
+    }
+
     CoUninitialize();
 }
 
@@ -1702,6 +1802,53 @@ static void test_CoInitializeEx(void)
     OleUninitialize();
 }
 
+static void test_OleRegGetMiscStatus(void)
+{
+    ULONG_PTR cookie;
+    HANDLE handle;
+    DWORD status;
+    HRESULT hr;
+
+    hr = OleRegGetMiscStatus(&CLSID_Testclass, DVASPECT_ICON, NULL);
+    ok(hr == E_INVALIDARG, "got 0x%08x\n", hr);
+
+    status = 0xdeadbeef;
+    hr = OleRegGetMiscStatus(&CLSID_Testclass, DVASPECT_ICON, &status);
+    ok(hr == REGDB_E_CLASSNOTREG, "got 0x%08x\n", hr);
+    ok(status == 0, "got 0x%08x\n", status);
+
+    status = -1;
+    hr = OleRegGetMiscStatus(&CLSID_StdFont, DVASPECT_ICON, &status);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+    ok(status == 0, "got 0x%08x\n", status);
+
+    if ((handle = activate_context(actctx_manifest, &cookie)))
+    {
+        status = 0;
+        hr = OleRegGetMiscStatus(&CLSID_Testclass, DVASPECT_ICON, &status);
+todo_wine {
+        ok(hr == S_OK, "got 0x%08x\n", hr);
+        ok(status == OLEMISC_RECOMPOSEONRESIZE, "got 0x%08x\n", status);
+}
+        /* context data takes precedence over registration info */
+        status = 0;
+        hr = OleRegGetMiscStatus(&CLSID_StdFont, DVASPECT_ICON, &status);
+        ok(hr == S_OK, "got 0x%08x\n", hr);
+todo_wine
+        ok(status == OLEMISC_RECOMPOSEONRESIZE, "got 0x%08x\n", status);
+
+        /* there's no such attribute in context */
+        status = -1;
+        hr = OleRegGetMiscStatus(&CLSID_Testclass, DVASPECT_DOCPRINT, &status);
+todo_wine
+        ok(hr == S_OK, "got 0x%08x\n", hr);
+        ok(status == 0, "got 0x%08x\n", status);
+
+        pDeactivateActCtx(0, cookie);
+        pReleaseActCtx(handle);
+    }
+}
+
 static void init_funcs(void)
 {
     HMODULE hOle32 = GetModuleHandleA("ole32");
@@ -1753,4 +1900,5 @@ START_TEST(compobj)
     test_CoGetContextToken();
     test_CoGetTreatAsClass();
     test_CoInitializeEx();
+    test_OleRegGetMiscStatus();
 }
