@@ -1637,27 +1637,27 @@ static void test_EM_SETOPTIONS(void)
     DestroyWindow(hwndRichEdit);
 }
 
-static int check_CFE_LINK_selection(HWND hwnd, int sel_start, int sel_end)
+static BOOL check_CFE_LINK_selection(HWND hwnd, int sel_start, int sel_end)
 {
   CHARFORMAT2W text_format;
   text_format.cbSize = sizeof(text_format);
   SendMessage(hwnd, EM_SETSEL, sel_start, sel_end);
   SendMessage(hwnd, EM_GETCHARFORMAT, SCF_SELECTION, (LPARAM) &text_format);
-  return (text_format.dwEffects & CFE_LINK) ? 1 : 0;
+  return (text_format.dwEffects & CFE_LINK) != 0;
 }
 
-static void check_CFE_LINK_rcvd(HWND hwnd, int is_url, const char * url)
+static void check_CFE_LINK_rcvd(HWND hwnd, BOOL is_url, const char * url)
 {
-  int link_present = 0;
+  BOOL link_present = FALSE;
 
   link_present = check_CFE_LINK_selection(hwnd, 0, 1);
   if (is_url) 
   { /* control text is url; should get CFE_LINK */
-	ok(0 != link_present, "URL Case: CFE_LINK not set for [%s].\n", url);
+    ok(link_present, "URL Case: CFE_LINK not set for [%s].\n", url);
   }
   else 
   {
-    ok(0 == link_present, "Non-URL Case: CFE_LINK set for [%s].\n", url);
+    ok(!link_present, "Non-URL Case: CFE_LINK set for [%s].\n", url);
   }
 }
 
@@ -1672,20 +1672,20 @@ static void test_EM_AUTOURLDETECT(void)
      one non-URL and one URL */
   struct urls_s {
     const char *text;
-    int is_url;
+    BOOL is_url;
   } urls[12] = {
-    {"winehq.org", 0},
-    {"http://www.winehq.org", 1},
-    {"http//winehq.org", 0},
-    {"ww.winehq.org", 0},
-    {"www.winehq.org", 1},
-    {"ftp://192.168.1.1", 1},
-    {"ftp//192.168.1.1", 0},
-    {"mailto:your@email.com", 1},    
-    {"prospero:prosperoserver", 1},
-    {"telnet:test", 1},
-    {"news:newserver", 1},
-    {"wais:waisserver", 1}  
+    {"winehq.org", FALSE},
+    {"http://www.winehq.org", TRUE},
+    {"http//winehq.org", FALSE},
+    {"ww.winehq.org", FALSE},
+    {"www.winehq.org", TRUE},
+    {"ftp://192.168.1.1", TRUE},
+    {"ftp//192.168.1.1", FALSE},
+    {"mailto:your@email.com", TRUE},
+    {"prospero:prosperoserver", TRUE},
+    {"telnet:test", TRUE},
+    {"news:newserver", TRUE},
+    {"wais:waisserver", TRUE}
   };
 
   int i, j;
@@ -1769,7 +1769,7 @@ static void test_EM_AUTOURLDETECT(void)
 
     SendMessage(hwndRichEdit, EM_AUTOURLDETECT, FALSE, 0);
     SendMessage(hwndRichEdit, WM_SETTEXT, 0, (LPARAM) urls[i].text);
-    check_CFE_LINK_rcvd(hwndRichEdit, 0, urls[i].text);
+    check_CFE_LINK_rcvd(hwndRichEdit, FALSE, urls[i].text);
 
     /* Link detection should happen immediately upon WM_SETTEXT */
     SendMessage(hwndRichEdit, EM_AUTOURLDETECT, TRUE, 0);
@@ -3913,6 +3913,23 @@ static void test_EM_SETTEXTEX(void)
   SendMessage(hwndRichEdit, EM_GETTEXTEX, (WPARAM)&getText, (LPARAM) bufACP);
   ok(!strcmp(bufACP, "morerichtext"), "expected 'morerichtext' but got '%s'\n", bufACP);
 
+  /* test for utf8 text with BOM */
+  setText.flags = 0;
+  setText.codepage = CP_ACP;
+  SendMessage(hwndRichEdit, EM_SETTEXTEX, (WPARAM)&setText, (LPARAM)"\xef\xbb\xbfTestUTF8WithBOM");
+  result = SendMessage(hwndRichEdit, WM_GETTEXT, 1024, (LPARAM)bufACP);
+  todo_wine ok(result == 15, "EM_SETTEXTEX: Test UTF8 with BOM returned %d, expected 15\n", result);
+  result = strcmp(bufACP, "TestUTF8WithBOM");
+  todo_wine ok(result == 0, "EM_SETTEXTEX: Test UTF8 with BOM set wrong text: Result: %s\n", bufACP);
+
+  setText.flags = 0;
+  setText.codepage = CP_UTF8;
+  SendMessage(hwndRichEdit, EM_SETTEXTEX, (WPARAM)&setText, (LPARAM)"\xef\xbb\xbfTestUTF8WithBOM");
+  result = SendMessage(hwndRichEdit, WM_GETTEXT, 1024, (LPARAM)bufACP);
+  todo_wine ok(result == 15, "EM_SETTEXTEX: Test UTF8 with BOM returned %d, expected 15\n", result);
+  result = strcmp(bufACP, "TestUTF8WithBOM");
+  todo_wine ok(result == 0, "EM_SETTEXTEX: Test UTF8 with BOM set wrong text: Result: %s\n", bufACP);
+
   DestroyWindow(hwndRichEdit);
 }
 
@@ -5018,6 +5035,29 @@ static DWORD CALLBACK test_EM_STREAMIN_esCallback(DWORD_PTR dwCookie,
   return 0;
 }
 
+static DWORD CALLBACK test_EM_STREAMIN_esCallback_UTF8Split(DWORD_PTR dwCookie,
+                                         LPBYTE pbBuff,
+                                         LONG cb,
+                                         LONG *pcb)
+{
+    DWORD *phase = (DWORD *)dwCookie;
+
+    if(*phase == 0){
+        static const char first[] = "\xef\xbb\xbf\xc3\x96\xc3";
+        *pcb = sizeof(first) - 1;
+        memcpy(pbBuff, first, *pcb);
+    }else if(*phase == 1){
+        static const char second[] = "\x8f\xc3\x8b";
+        *pcb = sizeof(second) - 1;
+        memcpy(pbBuff, second, *pcb);
+    }else
+        *pcb = 0;
+
+    ++*phase;
+
+    return 0;
+}
+
 struct StringWithLength {
     int length;
     char *buffer;
@@ -5046,6 +5086,7 @@ static DWORD CALLBACK test_EM_STREAMIN_esCallback2(DWORD_PTR dwCookie,
 static void test_EM_STREAMIN(void)
 {
   HWND hwndRichEdit = new_richedit(NULL);
+  DWORD phase;
   LRESULT result;
   EDITSTREAM es;
   char buffer[1024] = {0};
@@ -5186,6 +5227,21 @@ static void test_EM_STREAMIN(void)
   ok(result  == 0,
       "EM_STREAMIN: Test UTF8WithBOM set wrong text: Result: %s\n",buffer);
   ok(es.dwError == 0, "EM_STREAMIN: Test UTF8WithBOM set error %d, expected %d\n", es.dwError, 0);
+
+  phase = 0;
+  es.dwCookie = (DWORD_PTR)&phase;
+  es.dwError = 0;
+  es.pfnCallback = test_EM_STREAMIN_esCallback_UTF8Split;
+  result = SendMessage(hwndRichEdit, EM_STREAMIN, SF_TEXT, (LPARAM)&es);
+  ok(result == 8, "got %ld\n", result);
+
+  result = SendMessage(hwndRichEdit, WM_GETTEXT, 1024, (LPARAM) buffer);
+  ok(result  == 3,
+      "EM_STREAMIN: Test UTF8Split returned %ld\n", result);
+  result = memcmp (buffer,"\xd6\xcf\xcb", 3);
+  ok(result  == 0,
+      "EM_STREAMIN: Test UTF8Split set wrong text: Result: %s\n",buffer);
+  ok(es.dwError == 0, "EM_STREAMIN: Test UTF8Split set error %d, expected %d\n", es.dwError, 0);
 
   es.dwCookie = (DWORD_PTR)&cookieForStream4;
   es.dwError = 0;
@@ -7354,12 +7410,49 @@ static void test_enter(void)
   DestroyWindow(hwndRichEdit);
 }
 
+static void test_WM_CREATE(void)
+{
+    static const WCHAR titleW[] = {'l','i','n','e','1','\n','l','i','n','e','2',0};
+    static const char title[] = "line1\nline2";
+
+    HWND rich_edit;
+    LRESULT res;
+    char buf[64];
+    int len;
+
+    rich_edit = CreateWindowA(RICHEDIT_CLASS20A, title, WS_POPUP|WS_VISIBLE,
+            0, 0, 200, 80, NULL, NULL, NULL, NULL);
+    ok(rich_edit != NULL, "class: %s, error: %d\n", RICHEDIT_CLASS20A, (int) GetLastError());
+
+    len = GetWindowText(rich_edit, buf, sizeof(buf));
+    ok(len == 5, "GetWindowText returned %d\n", len);
+    ok(!strcmp(buf, "line1"), "buf = %s\n", buf);
+
+    res = SendMessage(rich_edit, EM_GETSEL, 0, 0);
+    ok(res == 0, "SendMessage(EM_GETSEL) returned %lx\n", res);
+
+    DestroyWindow(rich_edit);
+
+    rich_edit = CreateWindowW(RICHEDIT_CLASS20W, titleW, WS_POPUP|WS_VISIBLE|ES_MULTILINE,
+            0, 0, 200, 80, NULL, NULL, NULL, NULL);
+    ok(rich_edit != NULL, "class: %s, error: %d\n", wine_dbgstr_w(RICHEDIT_CLASS20W), (int) GetLastError());
+
+    len = GetWindowText(rich_edit, buf, sizeof(buf));
+    ok(len == 12, "GetWindowText returned %d\n", len);
+    ok(!strcmp(buf, "line1\r\nline2"), "buf = %s\n", buf);
+
+    res = SendMessage(rich_edit, EM_GETSEL, 0, 0);
+    ok(res == 0, "SendMessage(EM_GETSEL) returned %lx\n", res);
+
+    DestroyWindow(rich_edit);
+}
+
 START_TEST( editor )
 {
   BOOL ret;
   /* Must explicitly LoadLibrary(). The test has no references to functions in
    * RICHED20.DLL, so the linker doesn't actually link to it. */
-  hmoduleRichEdit = LoadLibrary("RICHED20.DLL");
+  hmoduleRichEdit = LoadLibraryA("riched20.dll");
   ok(hmoduleRichEdit != NULL, "error: %d\n", (int) GetLastError());
 
   test_WM_CHAR();
@@ -7414,6 +7507,7 @@ START_TEST( editor )
   test_EM_FINDWORDBREAK_W();
   test_EM_FINDWORDBREAK_A();
   test_enter();
+  test_WM_CREATE();
 
   /* Set the environment variable WINETEST_RICHED20 to keep windows
    * responsive and open for 30 seconds. This is useful for debugging.

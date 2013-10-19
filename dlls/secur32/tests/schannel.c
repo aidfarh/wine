@@ -49,7 +49,7 @@ static PCCERT_CONTEXT (WINAPI *pCertEnumCertificatesInStore)(HCERTSTORE,PCCERT_C
 
 static BOOL (WINAPI *pCryptAcquireContextW)(HCRYPTPROV*, LPCWSTR, LPCWSTR, DWORD, DWORD);
 static BOOL (WINAPI *pCryptDestroyKey)(HCRYPTKEY);
-static BOOL (WINAPI *pCryptImportKey)(HCRYPTPROV,CONST BYTE*,DWORD,HCRYPTKEY,DWORD,HCRYPTKEY*);
+static BOOL (WINAPI *pCryptImportKey)(HCRYPTPROV,const BYTE*,DWORD,HCRYPTKEY,DWORD,HCRYPTKEY*);
 static BOOL (WINAPI *pCryptReleaseContext)(HCRYPTPROV,ULONG_PTR);
 
 static const BYTE bigCert[] = { 0x30, 0x7a, 0x02, 0x01, 0x01, 0x30, 0x02, 0x06,
@@ -675,7 +675,7 @@ static void test_communication(void)
     init_cred(&cred);
     cred.dwFlags = SCH_CRED_NO_DEFAULT_CREDS|SCH_CRED_MANUAL_CRED_VALIDATION;
 
-    status = pAcquireCredentialsHandleA(NULL, (SEC_CHAR *)UNISP_NAME, SECPKG_CRED_OUTBOUND, NULL,
+    status = pAcquireCredentialsHandleA(NULL, (SEC_CHAR *)UNISP_NAME_A, SECPKG_CRED_OUTBOUND, NULL,
         &cred, NULL, NULL, &cred_handle, NULL);
     ok(status == SEC_E_OK, "AcquireCredentialsHandleA failed: %08x\n", status);
     if (status != SEC_E_OK) return;

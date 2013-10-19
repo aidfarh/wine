@@ -472,7 +472,8 @@ static unsigned long *get_bitmap_argb( HDC hdc, HBITMAP color, HBITMAP mask, uns
     BITMAP bm;
     unsigned int *ptr, *bits = NULL;
     unsigned char *mask_bits = NULL;
-    int i, j, has_alpha = 0;
+    int i, j;
+    BOOL has_alpha = FALSE;
 
     if (!GetObjectW( color, sizeof(bm), &bm )) return NULL;
     info->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -1598,6 +1599,8 @@ void CDECL X11DRV_DestroyWindow( HWND hwnd )
     struct x11drv_thread_data *thread_data = x11drv_thread_data();
     struct x11drv_win_data *data;
 
+    destroy_gl_drawable( hwnd );
+
     if (!(data = get_win_data( hwnd ))) return;
 
     destroy_whole_window( data, FALSE );
@@ -1609,7 +1612,6 @@ void CDECL X11DRV_DestroyWindow( HWND hwnd )
     XDeleteContext( gdi_display, (XID)hwnd, win_data_context );
     release_win_data( data );
     HeapFree( GetProcessHeap(), 0, data );
-    destroy_gl_drawable( hwnd );
 }
 
 
@@ -1897,11 +1899,12 @@ HWND create_foreign_window( Display *display, Window xwin )
     SetPropA( hwnd, foreign_window_prop, (HANDLE)xwin );
     XSaveContext( display, xwin, winContext, (char *)data->hwnd );
 
-    ShowWindow( hwnd, SW_SHOW );
-
     TRACE( "win %lx parent %p style %08x %s -> hwnd %p\n",
            xwin, parent, style, wine_dbgstr_rect(&data->window_rect), hwnd );
 
+    release_win_data( data );
+
+    ShowWindow( hwnd, SW_SHOW );
     return hwnd;
 }
 

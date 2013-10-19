@@ -35,8 +35,6 @@ INSTALLDIRS = \
 all: wine
 	@echo "Wine build complete."
 
-WINAPI_CHECK_EXTRA_FLAGS = --global
-
 @MAKE_RULES@
 
 # Rules for re-running configure
@@ -76,8 +74,6 @@ libs/wine: libs/port
 tools/wmc tools/wrc: tools
 tools tools/wmc tools/wrc: libs/wine
 tools/widl tools/wmc tools/wrc: libs/wpp
-
-dlls/shell32/Makefile dlls/shell32/__depend__: dlls/shell32/AUTHORS
 
 $(MAKEDEP): include/config.h
 	@cd $(TOOLSDIR)/tools && $(MAKE) makedep$(TOOLSEXT)

@@ -157,7 +157,6 @@ static void *ft_handle = NULL;
 MAKE_FUNCPTR(FT_Done_Face);
 MAKE_FUNCPTR(FT_Get_Char_Index);
 MAKE_FUNCPTR(FT_Get_First_Char);
-MAKE_FUNCPTR(FT_Get_Module);
 MAKE_FUNCPTR(FT_Get_Next_Char);
 MAKE_FUNCPTR(FT_Get_Sfnt_Name);
 MAKE_FUNCPTR(FT_Get_Sfnt_Name_Count);
@@ -915,14 +914,6 @@ static BOOL is_hinting_enabled(void)
             FT_TrueTypeEngineType type = pFT_Get_TrueType_Engine_Type(library);
             enabled = (type == FT_TRUETYPE_ENGINE_TYPE_PATENTED);
         }
-#ifdef FT_DRIVER_HAS_HINTER
-        else
-        {
-            /* otherwise if we've been compiled with < 2.2.0 headers use the internal macro */
-            FT_Module mod = pFT_Get_Module(library, "truetype");
-            enabled = (mod && FT_DRIVER_HAS_HINTER(mod));
-        }
-#endif
         else enabled = FALSE;
         TRACE("hinting is %senabled\n", enabled ? "" : "NOT ");
     }
@@ -3896,7 +3887,6 @@ static BOOL init_freetype(void)
     LOAD_FUNCPTR(FT_Done_Face)
     LOAD_FUNCPTR(FT_Get_Char_Index)
     LOAD_FUNCPTR(FT_Get_First_Char)
-    LOAD_FUNCPTR(FT_Get_Module)
     LOAD_FUNCPTR(FT_Get_Next_Char)
     LOAD_FUNCPTR(FT_Get_Sfnt_Name)
     LOAD_FUNCPTR(FT_Get_Sfnt_Name_Count)
@@ -6184,6 +6174,7 @@ static DWORD get_glyph_outline(GdiFont *incoming_font, UINT glyph, UINT format,
                                const MAT2* lpmat)
 {
     static const FT_Matrix identityMat = {(1 << 16), 0, 0, (1 << 16)};
+    GLYPHMETRICS gm;
     FT_Face ft_face = incoming_font->ft_face;
     GdiFont *font = incoming_font;
     FT_Glyph_Metrics metrics;
@@ -6419,8 +6410,8 @@ static DWORD get_glyph_outline(GdiFont *incoming_font, UINT glyph, UINT format,
 
 	top = (metrics.horiBearingY + 63) & -64;
 	bottom = (metrics.horiBearingY - metrics.height) & -64;
-	lpgm->gmCellIncX = adv;
-	lpgm->gmCellIncY = 0;
+	gm.gmCellIncX = adv;
+	gm.gmCellIncY = 0;
         origin_x = left;
         origin_y = top;
     } else {
@@ -6492,14 +6483,14 @@ static DWORD get_glyph_outline(GdiFont *incoming_font, UINT glyph, UINT format,
 	vec.x = metrics.horiAdvance;
 	vec.y = 0;
 	pFT_Vector_Transform(&vec, &transMat);
-	lpgm->gmCellIncY = -((vec.y+63) >> 6);
+	gm.gmCellIncY = -((vec.y+63) >> 6);
 	if (!avgAdvance || vec.y)
-	    lpgm->gmCellIncX = (vec.x+63) >> 6;
+	    gm.gmCellIncX = (vec.x+63) >> 6;
 	else {
 	    vec.x = incoming_font->ntmAvgWidth;
 	    vec.y = 0;
 	    pFT_Vector_Transform(&vec, &transMat);
-	    lpgm->gmCellIncX = pFT_MulFix(vec.x, em_scale) * 2;
+	    gm.gmCellIncX = pFT_MulFix(vec.x, em_scale) * 2;
 	}
 
         if (vertical_metrics)
@@ -6518,28 +6509,31 @@ static DWORD get_glyph_outline(GdiFont *incoming_font, UINT glyph, UINT format,
         }
     }
 
-    lpgm->gmBlackBoxX = (right - left) >> 6;
-    lpgm->gmBlackBoxY = (top - bottom) >> 6;
-    lpgm->gmptGlyphOrigin.x = origin_x >> 6;
-    lpgm->gmptGlyphOrigin.y = origin_y >> 6;
+    width  = (right - left) >> 6;
+    height = (top - bottom) >> 6;
+    gm.gmBlackBoxX = width  ? width  : 1;
+    gm.gmBlackBoxY = height ? height : 1;
+    gm.gmptGlyphOrigin.x = origin_x >> 6;
+    gm.gmptGlyphOrigin.y = origin_y >> 6;
     abc->abcA = left >> 6;
-    abc->abcB = (right - left) >> 6;
+    abc->abcB = gm.gmBlackBoxX;
     abc->abcC = adv - abc->abcA - abc->abcB;
 
-    TRACE("%u,%u,%s,%d,%d\n", lpgm->gmBlackBoxX, lpgm->gmBlackBoxY,
-          wine_dbgstr_point(&lpgm->gmptGlyphOrigin),
-          lpgm->gmCellIncX, lpgm->gmCellIncY);
+    TRACE("%u,%u,%s,%d,%d\n", gm.gmBlackBoxX, gm.gmBlackBoxY,
+          wine_dbgstr_point(&gm.gmptGlyphOrigin),
+          gm.gmCellIncX, gm.gmCellIncY);
 
     if ((format == GGO_METRICS || format == GGO_BITMAP || format ==  WINE_GGO_GRAY16_BITMAP) &&
         is_identity_MAT2(lpmat)) /* don't cache custom transforms */
     {
-        FONT_GM(font,original_index)->gm = *lpgm;
+        FONT_GM(font,original_index)->gm = gm;
         FONT_GM(font,original_index)->abc = *abc;
         FONT_GM(font,original_index)->init = TRUE;
     }
 
     if(format == GGO_METRICS)
     {
+        *lpgm = gm;
         return 1; /* FIXME */
     }
 
@@ -6552,12 +6546,11 @@ static DWORD get_glyph_outline(GdiFont *incoming_font, UINT glyph, UINT format,
 
     switch(format) {
     case GGO_BITMAP:
-        width = lpgm->gmBlackBoxX;
-	height = lpgm->gmBlackBoxY;
 	pitch = ((width + 31) >> 5) << 2;
         needed = pitch * height;
 
 	if(!buf || !buflen) break;
+        if (!needed) return GDI_ERROR;  /* empty glyph */
 
 	switch(ft_face->glyph->format) {
 	case ft_glyph_format_bitmap:
@@ -6604,12 +6597,11 @@ static DWORD get_glyph_outline(GdiFont *incoming_font, UINT glyph, UINT format,
 	unsigned int max_level, row, col;
 	BYTE *start, *ptr;
 
-        width = lpgm->gmBlackBoxX;
-	height = lpgm->gmBlackBoxY;
 	pitch = (width + 3) / 4 * 4;
 	needed = pitch * height;
 
 	if(!buf || !buflen) break;
+        if (!needed) return GDI_ERROR;  /* empty glyph */
 
         max_level = get_max_level( format );
 
@@ -6626,7 +6618,7 @@ static DWORD get_glyph_outline(GdiFont *incoming_font, UINT glyph, UINT format,
                 src += ft_face->glyph->bitmap.pitch;
                 dst += pitch;
             }
-            return needed;
+            break;
 	  }
         case ft_glyph_format_outline:
           {
@@ -6654,7 +6646,7 @@ static DWORD get_glyph_outline(GdiFont *incoming_font, UINT glyph, UINT format,
                     start += pitch;
                 }
             }
-            return needed;
+            break;
           }
 
         default:
@@ -6677,12 +6669,11 @@ static DWORD get_glyph_outline(GdiFont *incoming_font, UINT glyph, UINT format,
             BYTE *src, *dst;
             INT src_pitch, x;
 
-            width  = lpgm->gmBlackBoxX;
-            height = lpgm->gmBlackBoxY;
             pitch  = width * 4;
             needed = pitch * height;
 
             if (!buf || !buflen) break;
+            if (!needed) return GDI_ERROR;  /* empty glyph */
 
             memset(buf, 0, buflen);
             dst = buf;
@@ -6716,22 +6707,28 @@ static DWORD get_glyph_outline(GdiFont *incoming_font, UINT glyph, UINT format,
                 (format == WINE_GGO_HRGB_BITMAP || format == WINE_GGO_HBGR_BITMAP)?
                     FT_RENDER_MODE_LCD: FT_RENDER_MODE_LCD_V;
 
+            if (!width || !height)
+            {
+                if (!buf || !buflen) break;
+                return GDI_ERROR;
+            }
+
             if ( lcdfilter == FT_LCD_FILTER_DEFAULT || lcdfilter == FT_LCD_FILTER_LIGHT )
             {
                 if ( render_mode == FT_RENDER_MODE_LCD)
                 {
-                    lpgm->gmBlackBoxX += 2;
-                    lpgm->gmptGlyphOrigin.x -= 1;
+                    gm.gmBlackBoxX += 2;
+                    gm.gmptGlyphOrigin.x -= 1;
                 }
                 else
                 {
-                    lpgm->gmBlackBoxY += 2;
-                    lpgm->gmptGlyphOrigin.y += 1;
+                    gm.gmBlackBoxY += 2;
+                    gm.gmptGlyphOrigin.y += 1;
                 }
             }
 
-            width  = lpgm->gmBlackBoxX;
-            height = lpgm->gmBlackBoxY;
+            width  = gm.gmBlackBoxX;
+            height = gm.gmBlackBoxY;
             pitch  = width * 4;
             needed = pitch * height;
 
@@ -6766,7 +6763,7 @@ static DWORD get_glyph_outline(GdiFont *incoming_font, UINT glyph, UINT format,
                 vmul = 3;
             }
 
-            x_shift = ft_face->glyph->bitmap_left - lpgm->gmptGlyphOrigin.x;
+            x_shift = ft_face->glyph->bitmap_left - gm.gmptGlyphOrigin.x;
             if ( x_shift < 0 )
             {
                 src += hmul * -x_shift;
@@ -6778,7 +6775,7 @@ static DWORD get_glyph_outline(GdiFont *incoming_font, UINT glyph, UINT format,
                 width -= x_shift;
             }
 
-            y_shift = lpgm->gmptGlyphOrigin.y - ft_face->glyph->bitmap_top;
+            y_shift = gm.gmptGlyphOrigin.y - ft_face->glyph->bitmap_top;
             if ( y_shift < 0 )
             {
                 src += src_pitch * vmul * -y_shift;
@@ -7020,6 +7017,7 @@ static DWORD get_glyph_outline(GdiFont *incoming_font, UINT glyph, UINT format,
         FIXME("Unsupported format %d\n", format);
 	return GDI_ERROR;
     }
+    *lpgm = gm;
     return needed;
 }
 

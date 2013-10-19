@@ -35,6 +35,9 @@
 /* Define to 1 if you have the <asm/types.h> header file. */
 #undef HAVE_ASM_TYPES_H
 
+/* Define to 1 if you have the <asm/user.h> header file. */
+#undef HAVE_ASM_USER_H
+
 /* Define to 1 if you have the <AudioToolbox/AudioConverter.h> header file. */
 #undef HAVE_AUDIOTOOLBOX_AUDIOCONVERTER_H
 
@@ -258,6 +261,9 @@
 /* Define to 1 if you have the <ifaddrs.h> header file. */
 #undef HAVE_IFADDRS_H
 
+/* Define to 1 if you have the `if_nameindex' function. */
+#undef HAVE_IF_NAMEINDEX
+
 /* Define to 1 if you have the <inet/mib2.h> header file. */
 #undef HAVE_INET_MIB2_H
 
@@ -431,6 +437,9 @@
 
 /* Define to 1 if you have the <linux/param.h> header file. */
 #undef HAVE_LINUX_PARAM_H
+
+/* Define to 1 if you have the <linux/rtnetlink.h> header file. */
+#undef HAVE_LINUX_RTNETLINK_H
 
 /* Define to 1 if you have the <linux/serial.h> header file. */
 #undef HAVE_LINUX_SERIAL_H
@@ -819,6 +828,9 @@
 /* Define to 1 if `ips_total' is a member of `struct ip_stats'. */
 #undef HAVE_STRUCT_IP_STATS_IPS_TOTAL
 
+/* Define to 1 if the system has the type `struct link_map'. */
+#undef HAVE_STRUCT_LINK_MAP
+
 /* Define to 1 if `msg_accrights' is a member of `struct msghdr'. */
 #undef HAVE_STRUCT_MSGHDR_MSG_ACCRIGHTS
 
@@ -833,6 +845,9 @@
 
 /* Define to 1 if `name' is a member of `struct option'. */
 #undef HAVE_STRUCT_OPTION_NAME
+
+/* Define to 1 if the system has the type `struct r_debug'. */
+#undef HAVE_STRUCT_R_DEBUG
 
 /* Define to 1 if `sin6_scope_id' is a member of `struct sockaddr_in6'. */
 #undef HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID
@@ -911,6 +926,9 @@
 
 /* Define to 1 if the system has the type `struct xinpgen'. */
 #undef HAVE_STRUCT_XINPGEN
+
+/* Define to 1 if the system has the type `struct __res_state'. */
+#undef HAVE_STRUCT___RES_STATE
 
 /* Define to 1 if `_u._ext.nscount6' is a member of `struct __res_state'. */
 #undef HAVE_STRUCT___RES_STATE__U__EXT_NSCOUNT6
@@ -1229,6 +1247,12 @@
 
 /* Define to 1 if you have the `_vsnprintf' function. */
 #undef HAVE__VSNPRINTF
+
+/* Define to 1 if you have the `__res_getservers' function. */
+#undef HAVE___RES_GETSERVERS
+
+/* Define to 1 if you have the `__res_get_state' function. */
+#undef HAVE___RES_GET_STATE
 
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT

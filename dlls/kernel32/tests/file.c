@@ -33,6 +33,7 @@
 #include "winbase.h"
 #include "winerror.h"
 #include "winnls.h"
+#include "fileapi.h"
 
 static HANDLE (WINAPI *pFindFirstFileExA)(LPCSTR,FINDEX_INFO_LEVELS,LPVOID,FINDEX_SEARCH_OPS,LPVOID,DWORD);
 static BOOL (WINAPI *pReplaceFileA)(LPCSTR, LPCSTR, LPCSTR, DWORD, LPVOID, LPVOID);
@@ -44,6 +45,7 @@ static BOOL (WINAPI *pGetFileInformationByHandleEx)(HANDLE, FILE_INFO_BY_HANDLE_
 static HANDLE (WINAPI *pOpenFileById)(HANDLE, LPFILE_ID_DESCRIPTOR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD);
 static BOOL (WINAPI *pSetFileValidData)(HANDLE, LONGLONG);
 static HRESULT (WINAPI *pCopyFile2)(PCWSTR,PCWSTR,COPYFILE2_EXTENDED_PARAMETERS*);
+static HANDLE (WINAPI *pCreateFile2)(LPCWSTR, DWORD, DWORD, DWORD, CREATEFILE2_EXTENDED_PARAMETERS*);
 
 /* keep filename and filenameW the same */
 static const char filename[] = "testfile.xxx";
@@ -82,6 +84,7 @@ static void InitFunctionPointers(void)
     pOpenFileById = (void *) GetProcAddress(hkernel32, "OpenFileById");
     pSetFileValidData = (void *) GetProcAddress(hkernel32, "SetFileValidData");
     pCopyFile2 = (void *) GetProcAddress(hkernel32, "CopyFile2");
+    pCreateFile2 = (void *) GetProcAddress(hkernel32, "CreateFile2");
 }
 
 static void test__hread( void )
@@ -1483,6 +1486,87 @@ static void test_CreateFileW(void)
 			OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL);
     ok(hFile != INVALID_HANDLE_VALUE,
        "expected CreateFile to succeed on existing directory, error: %d\n", GetLastError());
+    CloseHandle(hFile);
+    ret = RemoveDirectoryW(filename);
+    ok(ret, "DeleteFileW: error %d\n", GetLastError());
+}
+
+static void test_CreateFile2(void)
+{
+    HANDLE hFile;
+    WCHAR temp_path[MAX_PATH];
+    WCHAR filename[MAX_PATH];
+    CREATEFILE2_EXTENDED_PARAMETERS exparams;
+    static const WCHAR emptyW[]={'\0'};
+    static const WCHAR prefix[] = {'p','f','x',0};
+    static const WCHAR bogus[] = { '\\', '\\', '.', '\\', 'B', 'O', 'G', 'U', 'S', 0 };
+    DWORD ret;
+
+    if (!pCreateFile2)
+    {
+        win_skip("CreateFile2 is missing\n");
+        return;
+    }
+
+    ret = GetTempPathW(MAX_PATH, temp_path);
+    ok(ret != 0, "GetTempPathW error %d\n", GetLastError());
+    ok(ret < MAX_PATH, "temp path should fit into MAX_PATH\n");
+
+    ret = GetTempFileNameW(temp_path, prefix, 0, filename);
+    ok(ret != 0, "GetTempFileNameW error %d\n", GetLastError());
+
+    SetLastError(0xdeadbeef);
+    exparams.dwSize = sizeof(exparams);
+    exparams.dwFileAttributes = FILE_FLAG_RANDOM_ACCESS;
+    exparams.dwFileFlags = 0;
+    exparams.dwSecurityQosFlags = 0;
+    exparams.lpSecurityAttributes = NULL;
+    exparams.hTemplateFile = 0;
+    hFile = pCreateFile2(filename, GENERIC_READ, 0, CREATE_NEW, &exparams);
+    ok(hFile == INVALID_HANDLE_VALUE && GetLastError() == ERROR_FILE_EXISTS,
+       "CREATE_NEW should fail if file exists and last error value should be ERROR_FILE_EXISTS\n");
+
+    SetLastError(0xdeadbeef);
+    hFile = pCreateFile2(filename, GENERIC_READ, FILE_SHARE_READ, CREATE_ALWAYS, &exparams);
+    ok(hFile != INVALID_HANDLE_VALUE && GetLastError() == ERROR_ALREADY_EXISTS,
+       "hFile %p, last error %u\n", hFile, GetLastError());
+    CloseHandle(hFile);
+
+    SetLastError(0xdeadbeef);
+    hFile = pCreateFile2(filename, GENERIC_READ, FILE_SHARE_READ, OPEN_ALWAYS, &exparams);
+    ok(hFile != INVALID_HANDLE_VALUE && GetLastError() == ERROR_ALREADY_EXISTS,
+       "hFile %p, last error %u\n", hFile, GetLastError());
+    CloseHandle(hFile);
+
+    ret = DeleteFileW(filename);
+    ok(ret, "DeleteFileW: error %d\n", GetLastError());
+
+    SetLastError(0xdeadbeef);
+    hFile = pCreateFile2(filename, GENERIC_READ, FILE_SHARE_READ, OPEN_ALWAYS, &exparams);
+    ok(hFile != INVALID_HANDLE_VALUE && GetLastError() == 0,
+       "hFile %p, last error %u\n", hFile, GetLastError());
+    CloseHandle(hFile);
+
+    ret = DeleteFileW(filename);
+    ok(ret, "DeleteFileW: error %d\n", GetLastError());
+
+    hFile = pCreateFile2(emptyW, GENERIC_READ, 0, CREATE_NEW, &exparams);
+    ok(hFile == INVALID_HANDLE_VALUE && GetLastError() == ERROR_PATH_NOT_FOUND,
+       "CreateFile2(\"\") returned ret=%p error=%d\n",hFile,GetLastError());
+
+    /* test the result of opening a nonexistent driver name */
+    exparams.dwFileAttributes = FILE_ATTRIBUTE_NORMAL;
+    hFile = pCreateFile2(bogus, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, OPEN_EXISTING, &exparams);
+    ok(hFile == INVALID_HANDLE_VALUE && GetLastError() == ERROR_FILE_NOT_FOUND,
+       "CreateFile2 on invalid VxD name returned ret=%p error=%d\n",hFile,GetLastError());
+
+    ret = CreateDirectoryW(filename, NULL);
+    ok(ret == TRUE, "couldn't create temporary directory\n");
+    exparams.dwFileAttributes = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS;
+    hFile = pCreateFile2(filename, GENERIC_READ | GENERIC_WRITE, 0, OPEN_ALWAYS, &exparams);
+    todo_wine
+    ok(hFile == INVALID_HANDLE_VALUE,
+       "expected CreateFile2 to fail on existing directory, error: %d\n", GetLastError());
     CloseHandle(hFile);
     ret = RemoveDirectoryW(filename);
     ok(ret, "DeleteFileW: error %d\n", GetLastError());
@@ -3806,11 +3890,27 @@ static void test_SetFileValidData(void)
     DeleteFile(filename);
 }
 
+static unsigned file_map_access(unsigned access)
+{
+    if (access & GENERIC_READ)    access |= FILE_GENERIC_READ;
+    if (access & GENERIC_WRITE)   access |= FILE_GENERIC_WRITE;
+    if (access & GENERIC_EXECUTE) access |= FILE_GENERIC_EXECUTE;
+    if (access & GENERIC_ALL)     access |= FILE_ALL_ACCESS;
+    return access & ~(GENERIC_READ | GENERIC_WRITE | GENERIC_EXECUTE | GENERIC_ALL);
+}
+
+static BOOL is_access_compatible(unsigned obj_access, unsigned desired_access)
+{
+    obj_access = file_map_access(obj_access);
+    desired_access = file_map_access(desired_access);
+    return (obj_access & desired_access) == desired_access;
+}
+
 static void test_file_access(void)
 {
     static const struct
     {
-        int access, create_error, write_error, read_error;
+        unsigned access, create_error, write_error, read_error;
     } td[] =
     {
         { GENERIC_READ | GENERIC_WRITE, 0, 0, 0 },
@@ -3819,12 +3919,15 @@ static void test_file_access(void)
         { FILE_READ_DATA | FILE_WRITE_DATA, 0, 0, 0 },
         { FILE_WRITE_DATA, 0, 0, ERROR_ACCESS_DENIED },
         { FILE_READ_DATA, 0, ERROR_ACCESS_DENIED, 0 },
+        { FILE_APPEND_DATA, 0, 0, ERROR_ACCESS_DENIED },
+        { FILE_READ_DATA | FILE_APPEND_DATA, 0, 0, 0 },
+        { FILE_WRITE_DATA | FILE_APPEND_DATA, 0, 0, ERROR_ACCESS_DENIED },
         { 0, 0, ERROR_ACCESS_DENIED, ERROR_ACCESS_DENIED },
     };
     char path[MAX_PATH], fname[MAX_PATH];
     unsigned char buf[16];
-    HANDLE hfile;
-    DWORD i, ret, bytes;
+    HANDLE hfile, hdup;
+    DWORD i, j, ret, bytes;
 
     GetTempPath(MAX_PATH, path);
     GetTempFileName(path, "foo", 0, fname);
@@ -3842,6 +3945,35 @@ static void test_file_access(void)
         }
         else
             ok(hfile != INVALID_HANDLE_VALUE, "%d: CreateFile error %d\n", i, GetLastError());
+
+        for (j = 0; j < sizeof(td)/sizeof(td[0]); j++)
+        {
+            SetLastError(0xdeadbeef);
+            ret = DuplicateHandle(GetCurrentProcess(), hfile, GetCurrentProcess(), &hdup,
+                                  td[j].access, 0, 0);
+            if (is_access_compatible(td[i].access, td[j].access))
+                ok(ret, "DuplicateHandle(%#x => %#x) error %d\n", td[i].access, td[j].access, GetLastError());
+            else
+            {
+                /* FIXME: Remove once Wine is fixed */
+                if ((td[j].access & (GENERIC_READ | GENERIC_WRITE)) ||
+                    (!(td[i].access & (GENERIC_WRITE | FILE_WRITE_DATA)) && (td[j].access & FILE_WRITE_DATA)) ||
+                    (!(td[i].access & (GENERIC_READ | FILE_READ_DATA)) && (td[j].access & FILE_READ_DATA)) ||
+                    (!(td[i].access & (GENERIC_WRITE)) && (td[j].access & FILE_APPEND_DATA)))
+                {
+todo_wine
+                ok(!ret, "DuplicateHandle(%#x => %#x) should fail\n", td[i].access, td[j].access);
+todo_wine
+                ok(GetLastError() == ERROR_ACCESS_DENIED, "expected ERROR_ACCESS_DENIED, got %d\n", GetLastError());
+                }
+                else
+                {
+                ok(!ret, "DuplicateHandle(%#x => %#x) should fail\n", td[i].access, td[j].access);
+                ok(GetLastError() == ERROR_ACCESS_DENIED, "expected ERROR_ACCESS_DENIED, got %d\n", GetLastError());
+                }
+            }
+            if (ret) CloseHandle(hdup);
+        }
 
         SetLastError(0xdeadbeef);
         bytes = 0xdeadbeef;
@@ -3906,6 +4038,7 @@ START_TEST(file)
     test_CreateFile();
     test_CreateFileA();
     test_CreateFileW();
+    test_CreateFile2();
     test_DeleteFileA();
     test_DeleteFileW();
     test_MoveFileA();

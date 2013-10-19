@@ -1140,6 +1140,38 @@ static void test_SystemFunction036(void)
     ok(ret == TRUE, "Expected SystemFunction036 to return TRUE, got %d\n", ret);
 }
 
+static void test_container_sd(void)
+{
+    HCRYPTPROV prov;
+    SECURITY_DESCRIPTOR *sd;
+    DWORD len, err;
+    BOOL ret;
+
+    ret = CryptAcquireContextA(&prov, "winetest", "Microsoft Enhanced Cryptographic Provider v1.0",
+                               PROV_RSA_FULL, CRYPT_MACHINE_KEYSET|CRYPT_NEWKEYSET);
+    ok(ret, "got %u\n", GetLastError());
+
+    len = 0;
+    SetLastError(0xdeadbeef);
+    ret = CryptGetProvParam(prov, PP_KEYSET_SEC_DESCR, NULL, &len, OWNER_SECURITY_INFORMATION);
+    err = GetLastError();
+    ok(ret, "got %u\n", err);
+    ok(err == ERROR_INSUFFICIENT_BUFFER || broken(err == ERROR_INVALID_PARAMETER), "got %u\n", err);
+    ok(len, "expected len > 0\n");
+
+    sd = HeapAlloc(GetProcessHeap(), 0, len);
+    ret = CryptGetProvParam(prov, PP_KEYSET_SEC_DESCR, (BYTE *)sd, &len, OWNER_SECURITY_INFORMATION);
+    ok(ret, "got %u\n", GetLastError());
+    HeapFree(GetProcessHeap(), 0, sd);
+
+    ret = CryptReleaseContext(prov, 0);
+    ok(ret, "got %u\n", GetLastError());
+
+    ret = CryptAcquireContextA(&prov, "winetest", "Microsoft Enhanced Cryptographic Provider v1.0",
+                               PROV_RSA_FULL, CRYPT_MACHINE_KEYSET|CRYPT_DELETEKEYSET);
+    ok(ret, "got %u\n", GetLastError());
+}
+
 START_TEST(crypt)
 {
     init_function_pointers();
@@ -1151,6 +1183,7 @@ START_TEST(crypt)
 	test_incorrect_api_usage();
 	test_verify_sig();
 	test_machine_guid();
+	test_container_sd();
 	clean_up_environment();
     }
 	

@@ -84,7 +84,7 @@ typedef struct
 static DWORD shutdown_flags = 0;
 static DWORD shutdown_priority = 0x280;
 static BOOL is_wow64;
-static const int is_win64 = (sizeof(void *) > sizeof(int));
+static const BOOL is_win64 = (sizeof(void *) > sizeof(int));
 
 HMODULE kernel32_handle = 0;
 SYSTEM_BASIC_INFORMATION system_info = { 0 };
@@ -116,7 +116,7 @@ extern void SHELL_LoadRegistry(void);
 /***********************************************************************
  *           contains_path
  */
-static inline int contains_path( LPCWSTR name )
+static inline BOOL contains_path( LPCWSTR name )
 {
     return ((*name && (name[1] == ':')) || strchrW(name, '/') || strchrW(name, '\\'));
 }
@@ -128,7 +128,7 @@ static inline int contains_path( LPCWSTR name )
  * Check if an environment variable needs to be handled specially when
  * passed through the Unix environment (i.e. prefixed with "WINE").
  */
-static inline int is_special_env_var( const char *var )
+static inline BOOL is_special_env_var( const char *var )
 {
     return (!strncmp( var, "PATH=", sizeof("PATH=")-1 ) ||
             !strncmp( var, "PWD=", sizeof("PWD=")-1 ) ||
@@ -738,19 +738,20 @@ static BOOL build_command_line( WCHAR **argv )
     len = 0;
     for (arg = argv; *arg; arg++)
     {
-        int has_space,bcount;
+        BOOL has_space;
+        int bcount;
         WCHAR* a;
 
-        has_space=0;
+        has_space=FALSE;
         bcount=0;
         a=*arg;
-        if( !*a ) has_space=1;
+        if( !*a ) has_space=TRUE;
         while (*a!='\0') {
             if (*a=='\\') {
                 bcount++;
             } else {
                 if (*a==' ' || *a=='\t') {
-                    has_space=1;
+                    has_space=TRUE;
                 } else if (*a=='"') {
                     /* doubling of '\' preceding a '"',
                      * plus escaping of said '"'
@@ -774,20 +775,20 @@ static BOOL build_command_line( WCHAR **argv )
     rupp->CommandLine.MaximumLength = len * sizeof(WCHAR);
     for (arg = argv; *arg; arg++)
     {
-        int has_space,has_quote;
+        BOOL has_space,has_quote;
         WCHAR* a;
 
         /* Check for quotes and spaces in this argument */
-        has_space=has_quote=0;
+        has_space=has_quote=FALSE;
         a=*arg;
-        if( !*a ) has_space=1;
+        if( !*a ) has_space=TRUE;
         while (*a!='\0') {
             if (*a==' ' || *a=='\t') {
-                has_space=1;
+                has_space=TRUE;
                 if (has_quote)
                     break;
             } else if (*a=='"') {
-                has_quote=1;
+                has_quote=TRUE;
                 if (has_space)
                     break;
             }

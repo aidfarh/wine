@@ -1258,7 +1258,7 @@ static void test_inheritance(void)
     CHAR pathA[MAX_PATH];
     static const WCHAR tl_path[] = {'.','\\','m','i','d','l','_','t','m','a','r','s','h','a','l','.','t','l','b',0};
 
-    BOOL use_midl_tlb = 0;
+    BOOL use_midl_tlb = FALSE;
 
     GetModuleFileNameA(NULL, pathA, MAX_PATH);
     MultiByteToWideChar(CP_ACP, 0, pathA, -1, path, MAX_PATH);
@@ -4325,9 +4325,10 @@ static void test_SetFuncAndParamNames(void)
     DeleteFileA(filenameA);
 }
 
-static void test_SetVarDocString(void)
+static void test_SetDocString(void)
 {
     static OLECHAR nameW[] = {'n','a','m','e',0};
+    static OLECHAR name2W[] = {'n','a','m','e','2',0};
     static OLECHAR doc1W[] = {'d','o','c','1',0};
     static OLECHAR doc2W[] = {'d','o','c','2',0};
     static OLECHAR var_nameW[] = {'v','a','r','n','a','m','e',0};
@@ -4339,6 +4340,7 @@ static void test_SetVarDocString(void)
     ITypeInfo *ti;
     BSTR namestr, docstr;
     VARDESC desc, *pdesc;
+    FUNCDESC funcdesc, *pfuncdesc;
     HRESULT hr;
     VARIANT v;
 
@@ -4393,6 +4395,29 @@ static void test_SetVarDocString(void)
 
     ICreateTypeInfo_Release(cti);
 
+    hr = ICreateTypeLib2_CreateTypeInfo(ctl, name2W, TKIND_INTERFACE, &cti);
+    ok(hr == S_OK, "got %08x\n", hr);
+
+    hr = ICreateTypeInfo_SetFuncDocString(cti, 0, doc1W);
+    ok(hr == TYPE_E_ELEMENTNOTFOUND, "got %08x\n", hr);
+
+    hr = ICreateTypeInfo_SetFuncDocString(cti, 0, NULL);
+    ok(hr == E_INVALIDARG, "got %08x\n", hr);
+
+    memset(&funcdesc, 0, sizeof(funcdesc));
+    funcdesc.memid = MEMBERID_NIL;
+    funcdesc.funckind = FUNC_PUREVIRTUAL;
+    funcdesc.invkind = INVOKE_FUNC;
+    funcdesc.callconv = CC_STDCALL;
+
+    hr = ICreateTypeInfo_AddFuncDesc(cti, 0, &funcdesc);
+    ok(hr == S_OK, "got %08x\n", hr);
+
+    hr = ICreateTypeInfo_SetFuncDocString(cti, 0, doc1W);
+    ok(hr == S_OK, "got %08x\n", hr);
+
+    ICreateTypeInfo_Release(cti);
+
     hr = ICreateTypeLib2_SaveAllChanges(ctl);
     ok(hr == S_OK, "got: %08x\n", hr);
 
@@ -4422,6 +4447,27 @@ static void test_SetVarDocString(void)
 
     ITypeInfo_ReleaseVarDesc(ti, pdesc);
     ITypeInfo_Release(ti);
+
+    hr = ITypeLib_GetTypeInfo(tl, 1, &ti);
+    ok(hr == S_OK, "got %08x\n", hr);
+
+    hr = ITypeInfo_GetFuncDesc(ti, 0, &pfuncdesc);
+    ok(hr == S_OK, "got %08x\n", hr);
+    ok(pfuncdesc->memid == 0x60000000, "got wrong memid: %x\n", pfuncdesc->memid);
+    ok(pfuncdesc->funckind == FUNC_PUREVIRTUAL, "got wrong funckind: %x\n", pfuncdesc->funckind);
+    ok(pfuncdesc->invkind == INVOKE_FUNC, "got wrong invkind: %x\n", pfuncdesc->invkind);
+    ok(pfuncdesc->callconv == CC_STDCALL, "got wrong callconv: %x\n", pfuncdesc->callconv);
+
+    hr = ITypeInfo_GetDocumentation(ti, pfuncdesc->memid, &namestr, &docstr, NULL, NULL);
+    ok(hr == S_OK, "got %08x\n", hr);
+    ok(namestr == NULL, "got wrong name: %s\n", wine_dbgstr_w(namestr));
+    ok(memcmp(docstr, doc1W, sizeof(doc1W)) == 0, "got wrong docstring: %s\n", wine_dbgstr_w(docstr));
+
+    SysFreeString(docstr);
+
+    ITypeInfo_ReleaseFuncDesc(ti, pfuncdesc);
+    ITypeInfo_Release(ti);
+
     ITypeLib_Release(tl);
 
     DeleteFileA(filenameA);
@@ -4656,19 +4702,24 @@ static void test_LoadRegTypeLib(void)
 
     path = NULL;
     hr = QueryPathOfRegTypeLib(&LIBID_TestTypelib, 2, 0, LOCALE_NEUTRAL, &path);
-todo_wine
     ok(hr == S_OK, "got 0x%08x\n", hr);
     SysFreeString(path);
 
     path = NULL;
     hr = QueryPathOfRegTypeLib(&LIBID_TestTypelib, 2, 0, lcid_en, &path);
-todo_wine
     ok(hr == S_OK, "got 0x%08x\n", hr);
     SysFreeString(path);
 
     path = NULL;
     hr = QueryPathOfRegTypeLib(&LIBID_TestTypelib, 2, 0, lcid_ru, &path);
-todo_wine
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+    SysFreeString(path);
+
+    hr = QueryPathOfRegTypeLib(&LIBID_TestTypelib, 2, 8, LOCALE_NEUTRAL, &path);
+    ok(hr == TYPE_E_LIBNOTREGISTERED || broken(hr == S_OK) /* winxp */, "got 0x%08x\n", hr);
+
+    path = NULL;
+    hr = QueryPathOfRegTypeLib(&LIBID_TestTypelib, 2, 7, LOCALE_NEUTRAL, &path);
     ok(hr == S_OK, "got 0x%08x\n", hr);
     SysFreeString(path);
 
@@ -4687,22 +4738,18 @@ todo_wine
 
     /* manifest version is 2.7, actual is 2.5 */
     hr = LoadRegTypeLib(&LIBID_TestTypelib, 2, 0, LOCALE_NEUTRAL, &tl);
-todo_wine
     ok(hr == S_OK, "got 0x%08x\n", hr);
     if (hr == S_OK) ITypeLib_Release(tl);
 
     hr = LoadRegTypeLib(&LIBID_TestTypelib, 2, 1, LOCALE_NEUTRAL, &tl);
-todo_wine
     ok(hr == S_OK, "got 0x%08x\n", hr);
     if (hr == S_OK) ITypeLib_Release(tl);
 
     hr = LoadRegTypeLib(&LIBID_TestTypelib, 2, 0, lcid_en, &tl);
-todo_wine
     ok(hr == S_OK, "got 0x%08x\n", hr);
     if (hr == S_OK) ITypeLib_Release(tl);
 
     hr = LoadRegTypeLib(&LIBID_TestTypelib, 2, 0, lcid_ru, &tl);
-todo_wine
     ok(hr == S_OK, "got 0x%08x\n", hr);
     if (hr == S_OK) ITypeLib_Release(tl);
 
@@ -4710,22 +4757,19 @@ todo_wine
     ok(hr == TYPE_E_LIBNOTREGISTERED, "got 0x%08x\n", hr);
 
     hr = LoadRegTypeLib(&LIBID_TestTypelib, 2, 5, LOCALE_NEUTRAL, &tl);
-todo_wine
     ok(hr == S_OK, "got 0x%08x\n", hr);
 
-if (hr == S_OK)
-{
     hr = ITypeLib_GetLibAttr(tl, &attr);
     ok(hr == S_OK, "got 0x%08x\n", hr);
 
     ok(attr->lcid == 0, "got %x\n", attr->lcid);
     ok(attr->wMajorVerNum == 2, "got %d\n", attr->wMajorVerNum);
     ok(attr->wMinorVerNum == 5, "got %d\n", attr->wMinorVerNum);
+todo_wine
     ok(attr->wLibFlags == LIBFLAG_FHASDISKIMAGE, "got %x\n", attr->wLibFlags);
 
     ITypeLib_ReleaseTLibAttr(tl, attr);
     ITypeLib_Release(tl);
-}
 
     hr = LoadRegTypeLib(&LIBID_TestTypelib, 1, 7, LOCALE_NEUTRAL, &tl);
     ok(hr == TYPE_E_LIBNOTREGISTERED, "got 0x%08x\n", hr);
@@ -4979,6 +5023,30 @@ static void test_SetTypeDescAlias(SYSKIND kind)
     DeleteFileA(filenameA);
 }
 
+static void test_GetLibAttr(void)
+{
+    ULONG ref1, ref2;
+    TLIBATTR *attr;
+    ITypeLib *tl;
+    HRESULT hr;
+
+    hr = LoadTypeLib(wszStdOle2, &tl);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+
+    ref1 = ITypeLib_AddRef(tl);
+    ITypeLib_Release(tl);
+
+    hr = ITypeLib_GetLibAttr(tl, &attr);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+
+    ref2 = ITypeLib_AddRef(tl);
+    ITypeLib_Release(tl);
+    ok(ref2 == ref1, "got %d, %d\n", ref2, ref1);
+
+    ITypeLib_ReleaseTLibAttr(tl, attr);
+    ITypeLib_Release(tl);
+}
+
 START_TEST(typelib)
 {
     const char *filename;
@@ -5001,7 +5069,7 @@ START_TEST(typelib)
     test_inheritance();
     test_SetVarHelpContext();
     test_SetFuncAndParamNames();
-    test_SetVarDocString();
+    test_SetDocString();
     test_FindName();
 
     if ((filename = create_test_typelib(2)))
@@ -5016,4 +5084,5 @@ START_TEST(typelib)
     test_LoadTypeLib();
     test_TypeInfo2_GetContainingTypeLib();
     test_LoadRegTypeLib();
+    test_GetLibAttr();
 }

@@ -3005,6 +3005,7 @@ static HRESULT CreateSurface(struct ddraw *ddraw, DDSURFACEDESC2 *DDSD,
     {
         enum wined3d_format_id format = wined3dformat_from_ddrawformat(&desc2.u4.ddpfPixelFormat);
         enum wined3d_resource_type rtype;
+        DWORD usage = 0;
 
         if (desc2.ddsCaps.dwCaps & DDSCAPS_TEXTURE)
             rtype = WINED3D_RTYPE_TEXTURE;
@@ -3013,8 +3014,13 @@ static HRESULT CreateSurface(struct ddraw *ddraw, DDSURFACEDESC2 *DDSD,
         else
             rtype = WINED3D_RTYPE_SURFACE;
 
+        if (desc2.ddsCaps.dwCaps & DDSCAPS_ZBUFFER)
+            usage = WINED3DUSAGE_DEPTHSTENCIL;
+        else if (desc2.ddsCaps.dwCaps & DDSCAPS_3DDEVICE)
+            usage = WINED3DUSAGE_RENDERTARGET;
+
         hr = wined3d_check_device_format(ddraw->wined3d, WINED3DADAPTER_DEFAULT, WINED3D_DEVICE_TYPE_HAL,
-                mode.format_id, 0, rtype, format);
+                mode.format_id, usage, rtype, format);
         if (SUCCEEDED(hr))
             desc2.ddsCaps.dwCaps |= DDSCAPS_VIDEOMEMORY;
         else
@@ -4507,9 +4513,10 @@ static HRESULT WINAPI d3d7_CreateDevice(IDirect3D7 *iface, REFCLSID riid,
     TRACE("iface %p, riid %s, surface %p, device %p.\n", iface, debugstr_guid(riid), surface, device);
 
     wined3d_mutex_lock();
-    hr = d3d_device_create(ddraw, target, 7, &object, NULL);
-    if (SUCCEEDED(hr))
+    if (SUCCEEDED(hr = d3d_device_create(ddraw, target, (IUnknown *)surface, 7, &object, NULL)))
+    {
         *device = &object->IDirect3DDevice7_iface;
+    }
     else
     {
         WARN("Failed to create device, hr %#x.\n", hr);
@@ -4535,9 +4542,10 @@ static HRESULT WINAPI d3d3_CreateDevice(IDirect3D3 *iface, REFCLSID riid,
         return CLASS_E_NOAGGREGATION;
 
     wined3d_mutex_lock();
-    hr = d3d_device_create(ddraw, surface_impl, 3, &device_impl, NULL);
-    if (SUCCEEDED(hr))
+    if (SUCCEEDED(hr = d3d_device_create(ddraw, surface_impl, (IUnknown *)surface, 3, &device_impl, NULL)))
+    {
         *device = &device_impl->IDirect3DDevice3_iface;
+    }
     else
     {
         WARN("Failed to create device, hr %#x.\n", hr);
@@ -4560,9 +4568,10 @@ static HRESULT WINAPI d3d2_CreateDevice(IDirect3D2 *iface, REFCLSID riid,
             iface, debugstr_guid(riid), surface, device);
 
     wined3d_mutex_lock();
-    hr = d3d_device_create(ddraw, surface_impl, 2, &device_impl, NULL);
-    if (SUCCEEDED(hr))
+    if (SUCCEEDED(hr = d3d_device_create(ddraw, surface_impl, (IUnknown *)surface, 2, &device_impl, NULL)))
+    {
         *device = &device_impl->IDirect3DDevice2_iface;
+    }
     else
     {
         WARN("Failed to create device, hr %#x.\n", hr);

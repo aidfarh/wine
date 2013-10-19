@@ -855,6 +855,7 @@ static struct test_entry pi_tests[] = {
     { "<?pi  ?>", "pi", "", S_OK },
     { "<?pi pi data?>", "pi", "pi data", S_OK },
     { "<?pi pi data  ?>", "pi", "pi data  ", S_OK },
+    { "<?pi    data  ?>", "pi", "data  ", S_OK },
     { "<?pi:pi?>", NULL, NULL, NC_E_NAMECOLON, WC_E_NAMECHARACTER },
     { "<?:pi ?>", NULL, NULL, WC_E_PI, WC_E_NAMECHARACTER },
     { "<?-pi ?>", NULL, NULL, WC_E_PI, WC_E_NAMECHARACTER },
@@ -943,9 +944,13 @@ static const char misc_test_xml[] =
     " \t \r \n"
     "<!-- comment4 -->"
     "<a>"
+    "\r\n\t"
     "<b/>"
+    "text"
     "<!-- comment -->"
+    "text2"
     "<?pi pibody ?>"
+    "\r\n"
     "</a>"
 ;
 
@@ -959,9 +964,13 @@ static struct nodes_test misc_test = {
         XmlNodeType_Whitespace,
         XmlNodeType_Comment,
         XmlNodeType_Element,
+        XmlNodeType_Whitespace,
         XmlNodeType_Element,
+        XmlNodeType_Text,
         XmlNodeType_Comment,
+        XmlNodeType_Text,
         XmlNodeType_ProcessingInstruction,
+        XmlNodeType_Whitespace,
         XmlNodeType_EndElement,
         XmlNodeType_None
     }

@@ -117,6 +117,12 @@ enum {
     TOPMOST_FLOAT_INACTIVE_ALL,
 };
 
+enum {
+    MACDRV_HOTKEY_SUCCESS,
+    MACDRV_HOTKEY_ALREADY_REGISTERED,
+    MACDRV_HOTKEY_FAILURE,
+};
+
 
 typedef struct macdrv_opaque_window* macdrv_window;
 typedef struct macdrv_opaque_event_queue* macdrv_event_queue;
@@ -137,6 +143,8 @@ struct macdrv_display {
 extern int macdrv_err_on;
 extern int topmost_float_inactive DECLSPEC_HIDDEN;
 extern int capture_displays_for_fullscreen DECLSPEC_HIDDEN;
+extern int left_option_is_alt DECLSPEC_HIDDEN;
+extern int right_option_is_alt DECLSPEC_HIDDEN;
 
 extern int macdrv_start_cocoa_app(unsigned long long tickcount) DECLSPEC_HIDDEN;
 extern void macdrv_window_rejected_focus(const struct macdrv_event *event) DECLSPEC_HIDDEN;
@@ -166,6 +174,7 @@ enum {
     APP_DEACTIVATED,
     APP_QUIT_REQUESTED,
     DISPLAYS_CHANGED,
+    HOTKEY_PRESS,
     IM_SET_TEXT,
     KEY_PRESS,
     KEY_RELEASE,
@@ -178,12 +187,13 @@ enum {
     RELEASE_CAPTURE,
     STATUS_ITEM_MOUSE_BUTTON,
     STATUS_ITEM_MOUSE_MOVE,
+    WINDOW_BROUGHT_FORWARD,
     WINDOW_CLOSE_REQUESTED,
-    WINDOW_DID_MINIMIZE,
     WINDOW_DID_UNMINIMIZE,
     WINDOW_FRAME_CHANGED,
     WINDOW_GOT_FOCUS,
     WINDOW_LOST_FOCUS,
+    WINDOW_MINIMIZE_REQUESTED,
     NUM_EVENT_TYPES
 };
 
@@ -208,6 +218,12 @@ typedef struct macdrv_event {
         struct {
             int activating;
         }                                           displays_changed;
+        struct {
+            unsigned int    vkey;
+            unsigned int    mod_flags;
+            unsigned int    keycode;
+            unsigned long   time_ms;
+        }                                           hotkey_press;
         struct {
             void           *data;
             CFStringRef     text;       /* new text or NULL if just completing existing text */
@@ -257,7 +273,8 @@ typedef struct macdrv_event {
             macdrv_status_item  item;
         }                                           status_item_mouse_move;
         struct {
-            CGRect frame;
+            CGRect  frame;
+            int     fullscreen;
         }                                           window_frame_changed;
         struct {
             unsigned long   serial;
@@ -272,6 +289,9 @@ enum {
     QUERY_DRAG_OPERATION,
     QUERY_IME_CHAR_RECT,
     QUERY_PASTEBOARD_DATA,
+    QUERY_RESIZE_END,
+    QUERY_RESIZE_START,
+    QUERY_MIN_MAX_INFO,
     NUM_QUERY_TYPES
 };
 
@@ -325,6 +345,9 @@ extern macdrv_query* macdrv_create_query(void) DECLSPEC_HIDDEN;
 extern macdrv_query* macdrv_retain_query(macdrv_query *query) DECLSPEC_HIDDEN;
 extern void macdrv_release_query(macdrv_query *query) DECLSPEC_HIDDEN;
 extern void macdrv_set_query_done(macdrv_query *query) DECLSPEC_HIDDEN;
+extern int macdrv_register_hot_key(macdrv_event_queue q, unsigned int vkey, unsigned int mod_flags,
+                                   unsigned int keycode, unsigned int modifiers) DECLSPEC_HIDDEN;
+extern void macdrv_unregister_hot_key(macdrv_event_queue q, unsigned int vkey, unsigned int mod_flags) DECLSPEC_HIDDEN;
 
 
 /* window */
@@ -344,6 +367,7 @@ struct macdrv_window_state {
     unsigned int    excluded_by_expose:1;
     unsigned int    excluded_by_cycle:1;
     unsigned int    minimized:1;
+    unsigned int    minimized_valid:1;
 };
 
 extern macdrv_window macdrv_create_cocoa_window(const struct macdrv_window_features* wf,
@@ -373,6 +397,7 @@ extern void macdrv_set_window_color_key(macdrv_window w, CGFloat keyRed, CGFloat
 extern void macdrv_clear_window_color_key(macdrv_window w) DECLSPEC_HIDDEN;
 extern void macdrv_window_use_per_pixel_alpha(macdrv_window w, int use_per_pixel_alpha) DECLSPEC_HIDDEN;
 extern void macdrv_give_cocoa_window_focus(macdrv_window w, int activate) DECLSPEC_HIDDEN;
+extern void macdrv_set_window_min_max_sizes(macdrv_window w, CGSize min_size, CGSize max_size) DECLSPEC_HIDDEN;
 extern macdrv_view macdrv_create_view(macdrv_window w, CGRect rect) DECLSPEC_HIDDEN;
 extern void macdrv_dispose_view(macdrv_view v) DECLSPEC_HIDDEN;
 extern void macdrv_set_view_window_and_frame(macdrv_view v, macdrv_window w, CGRect rect) DECLSPEC_HIDDEN;

@@ -1658,7 +1658,7 @@
 @ varargs _snwprintf(ptr long wstr) msvcrt._snwprintf
 @ varargs _snwprintf_l(ptr long wstr ptr) msvcrt._snwprintf_l
 @ varargs _snwprintf_s(ptr long long wstr) msvcrt._snwprintf_s
-@ stub _snwprintf_s_l
+@ varargs _snwprintf_s_l(ptr long long wstr ptr) msvcrt._snwprintf_s_l
 @ varargs _snwscanf(wstr long wstr) msvcrt._snwscanf
 @ varargs _snwscanf_l(wstr long wstr ptr) msvcrt._snwscanf_l
 @ varargs _snwscanf_s(wstr long wstr) msvcrt._snwscanf_s
@@ -1967,7 +1967,7 @@
 @ cdecl _wtof_l(wstr ptr) msvcrt._wtof_l
 @ cdecl _wtoi(wstr) msvcrt._wtoi
 @ cdecl -ret64 _wtoi64(wstr) msvcrt._wtoi64
-@ stub _wtoi64_l
+@ cdecl -ret64 _wtoi64_l(wstr ptr) msvcrt._wtoi64_l
 @ cdecl _wtoi_l(wstr ptr) msvcrt._wtoi_l
 @ cdecl _wtol(wstr) msvcrt._wtol
 @ cdecl _wtol_l(wstr ptr) msvcrt._wtol_l

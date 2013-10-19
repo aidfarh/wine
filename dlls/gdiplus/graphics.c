@@ -621,7 +621,7 @@ static ARGB transform_color(ARGB color, const ColorMatrix *matrix)
     return (a << 24) | (r << 16) | (g << 8) | b;
 }
 
-static int color_is_gray(ARGB color)
+static BOOL color_is_gray(ARGB color)
 {
     unsigned char r, g, b;
 
@@ -944,12 +944,12 @@ static REAL intersect_line_scanline(const GpPointF *p1, const GpPointF *p2, REAL
     return (p1->X - p2->X) * (p2->Y - y) / (p2->Y - p1->Y) + p2->X;
 }
 
-static INT brush_can_fill_path(GpBrush *brush)
+static BOOL brush_can_fill_path(GpBrush *brush)
 {
     switch (brush->bt)
     {
     case BrushTypeSolidColor:
-        return 1;
+        return TRUE;
     case BrushTypeHatchFill:
     {
         GpHatch *hatch = (GpHatch*)brush;
@@ -960,7 +960,7 @@ static INT brush_can_fill_path(GpBrush *brush)
     case BrushTypeTextureFill:
     /* Gdi32 isn't much help with these, so we should use brush_fill_pixels instead. */
     default:
-        return 0;
+        return FALSE;
     }
 }
 
@@ -1012,7 +1012,7 @@ static void brush_fill_path(GpGraphics *graphics, GpBrush* brush)
     }
 }
 
-static INT brush_can_fill_pixels(GpBrush *brush)
+static BOOL brush_can_fill_pixels(GpBrush *brush)
 {
     switch (brush->bt)
     {
@@ -1021,9 +1021,9 @@ static INT brush_can_fill_pixels(GpBrush *brush)
     case BrushTypeLinearGradient:
     case BrushTypeTextureFill:
     case BrushTypePathGradient:
-        return 1;
+        return TRUE;
     default:
-        return 0;
+        return FALSE;
     }
 }
 
@@ -6208,15 +6208,18 @@ static GpStatus SOFTWARE_GdipDrawDriverString(GpGraphics *graphics, GDIPCONST UI
         if (glyphsize > max_glyphsize)
             max_glyphsize = glyphsize;
 
-        left = pti[i].x + glyphmetrics.gmptGlyphOrigin.x;
-        top = pti[i].y - glyphmetrics.gmptGlyphOrigin.y;
-        right = pti[i].x + glyphmetrics.gmptGlyphOrigin.x + glyphmetrics.gmBlackBoxX;
-        bottom = pti[i].y - glyphmetrics.gmptGlyphOrigin.y + glyphmetrics.gmBlackBoxY;
+        if (glyphsize != 0)
+        {
+            left = pti[i].x + glyphmetrics.gmptGlyphOrigin.x;
+            top = pti[i].y - glyphmetrics.gmptGlyphOrigin.y;
+            right = pti[i].x + glyphmetrics.gmptGlyphOrigin.x + glyphmetrics.gmBlackBoxX;
+            bottom = pti[i].y - glyphmetrics.gmptGlyphOrigin.y + glyphmetrics.gmBlackBoxY;
 
-        if (left < min_x) min_x = left;
-        if (top < min_y) min_y = top;
-        if (right > max_x) max_x = right;
-        if (bottom > max_y) max_y = bottom;
+            if (left < min_x) min_x = left;
+            if (top < min_y) min_y = top;
+            if (right > max_x) max_x = right;
+            if (bottom > max_y) max_y = bottom;
+        }
 
         if (i+1 < length && (flags & DriverStringOptionsRealizedAdvance) == DriverStringOptionsRealizedAdvance)
         {
@@ -6224,6 +6227,10 @@ static GpStatus SOFTWARE_GdipDrawDriverString(GpGraphics *graphics, GDIPCONST UI
             pti[i+1].y = pti[i].y + glyphmetrics.gmCellIncY;
         }
     }
+
+    if (max_glyphsize == 0)
+        /* Nothing to draw. */
+        return Ok;
 
     glyph_mask = GdipAlloc(max_glyphsize);
     text_mask = GdipAlloc((max_x - min_x) * (max_y - min_y));
@@ -6242,10 +6249,14 @@ static GpStatus SOFTWARE_GdipDrawDriverString(GpGraphics *graphics, GDIPCONST UI
     /* Generate a mask for the text */
     for (i=0; i<length; i++)
     {
+        DWORD ret;
         int left, top, stride;
 
-        GetGlyphOutlineW(hdc, text[i], ggo_flags,
+        ret = GetGlyphOutlineW(hdc, text[i], ggo_flags,
             &glyphmetrics, max_glyphsize, glyph_mask, &identity);
+
+        if (ret == GDI_ERROR || ret == 0)
+            continue; /* empty glyph */
 
         left = pti[i].x + glyphmetrics.gmptGlyphOrigin.x;
         top = pti[i].y - glyphmetrics.gmptGlyphOrigin.y;

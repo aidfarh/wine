@@ -94,13 +94,13 @@ typedef struct _WINE_MEMSTORE
     struct ContextList *ctls;
 } WINE_MEMSTORE;
 
-void CRYPT_InitStore(WINECRYPT_CERTSTORE *store, DWORD dwFlags,
- CertStoreType type)
+void CRYPT_InitStore(WINECRYPT_CERTSTORE *store, DWORD dwFlags, CertStoreType type, const store_vtbl_t *vtbl)
 {
     store->ref = 1;
     store->dwMagic = WINE_CRYPTCERTSTORE_MAGIC;
     store->type = type;
     store->dwOpenFlags = dwFlags;
+    store->vtbl = vtbl;
     store->properties = NULL;
 }
 
@@ -160,8 +160,9 @@ static BOOL CRYPT_MemAddCert(WINECRYPT_CERTSTORE *store, void *cert,
     if (context)
     {
         context->hCertStore = store;
-        if (ppStoreContext)
+        if (ppStoreContext) {
             *ppStoreContext = CertDuplicateCertificateContext(context);
+        }
     }
     return context != 0;
 }
@@ -283,16 +284,9 @@ static BOOL CRYPT_MemDeleteCtl(WINECRYPT_CERTSTORE *store, void *pCtlContext)
     return ret;
 }
 
-static BOOL WINAPI CRYPT_MemControl(HCERTSTORE hCertStore, DWORD dwFlags,
- DWORD dwCtrlType, void const *pvCtrlPara)
+static void MemStore_closeStore(WINECRYPT_CERTSTORE *cert_store, DWORD dwFlags)
 {
-    SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
-    return FALSE;
-}
-
-static void WINAPI CRYPT_MemCloseStore(HCERTSTORE hCertStore, DWORD dwFlags)
-{
-    WINE_MEMSTORE *store = hCertStore;
+    WINE_MEMSTORE *store = (WINE_MEMSTORE*)cert_store;
 
     TRACE("(%p, %08x)\n", store, dwFlags);
     if (dwFlags)
@@ -303,6 +297,18 @@ static void WINAPI CRYPT_MemCloseStore(HCERTSTORE hCertStore, DWORD dwFlags)
     ContextList_Free(store->ctls);
     CRYPT_FreeStore((WINECRYPT_CERTSTORE*)store);
 }
+
+static BOOL MemStore_control(WINECRYPT_CERTSTORE *store, DWORD dwFlags,
+ DWORD dwCtrlType, void const *pvCtrlPara)
+{
+    SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
+    return FALSE;
+}
+
+static const store_vtbl_t MemStoreVtbl = {
+    MemStore_closeStore,
+    MemStore_control
+};
 
 static WINECRYPT_CERTSTORE *CRYPT_MemOpenStore(HCRYPTPROV hCryptProv,
  DWORD dwFlags, const void *pvPara)
@@ -322,8 +328,7 @@ static WINECRYPT_CERTSTORE *CRYPT_MemOpenStore(HCRYPTPROV hCryptProv,
         if (store)
         {
             memset(store, 0, sizeof(WINE_MEMSTORE));
-            CRYPT_InitStore(&store->hdr, dwFlags, StoreTypeMem);
-            store->hdr.closeStore          = CRYPT_MemCloseStore;
+            CRYPT_InitStore(&store->hdr, dwFlags, StoreTypeMem, &MemStoreVtbl);
             store->hdr.certs.addContext    = CRYPT_MemAddCert;
             store->hdr.certs.enumContext   = CRYPT_MemEnumCert;
             store->hdr.certs.deleteContext = CRYPT_MemDeleteCert;
@@ -333,7 +338,6 @@ static WINECRYPT_CERTSTORE *CRYPT_MemOpenStore(HCRYPTPROV hCryptProv,
             store->hdr.ctls.addContext     = CRYPT_MemAddCtl;
             store->hdr.ctls.enumContext    = CRYPT_MemEnumCtl;
             store->hdr.ctls.deleteContext  = CRYPT_MemDeleteCtl;
-            store->hdr.control             = CRYPT_MemControl;
             store->certs = ContextList_Create(pCertInterface,
              sizeof(CERT_CONTEXT));
             store->crls = ContextList_Create(pCRLInterface,
@@ -876,9 +880,6 @@ HCERTSTORE WINAPI CertOpenSystemStoreW(HCRYPTPROV_LEGACY hProv,
      CERT_SYSTEM_STORE_CURRENT_USER, szSubSystemProtocol);
 }
 
-#define CertContext_CopyProperties(to, from) \
- Context_CopyProperties((to), (from), sizeof(CERT_CONTEXT))
-
 BOOL WINAPI CertAddCertificateContextToStore(HCERTSTORE hCertStore,
  PCCERT_CONTEXT pCertContext, DWORD dwAddDisposition,
  PCCERT_CONTEXT *ppStoreContext)
@@ -943,12 +944,12 @@ BOOL WINAPI CertAddCertificateContextToStore(HCERTSTORE hCertStore,
     case CERT_STORE_ADD_REPLACE_EXISTING_INHERIT_PROPERTIES:
         toAdd = CertDuplicateCertificateContext(pCertContext);
         if (existing)
-            CertContext_CopyProperties(toAdd, existing);
+            Context_CopyProperties(toAdd, existing);
         break;
     case CERT_STORE_ADD_USE_EXISTING:
         if (existing)
         {
-            CertContext_CopyProperties(existing, pCertContext);
+            Context_CopyProperties(existing, pCertContext);
             if (ppStoreContext)
                 *ppStoreContext = CertDuplicateCertificateContext(existing);
         }
@@ -984,7 +985,7 @@ BOOL WINAPI CertAddCertificateContextToStore(HCERTSTORE hCertStore,
             else
             {
                 toAdd = CertDuplicateCertificateContext(pCertContext);
-                CertContext_CopyProperties(toAdd, existing);
+                Context_CopyProperties(toAdd, existing);
             }
         }
         else
@@ -1115,7 +1116,7 @@ BOOL WINAPI CertAddCRLContextToStore(HCERTSTORE hCertStore,
             if (newer < 0)
             {
                 toAdd = CertDuplicateCRLContext(pCrlContext);
-                CrlContext_CopyProperties(toAdd, existing);
+                Context_CopyProperties(toAdd, existing);
             }
             else
             {
@@ -1133,12 +1134,12 @@ BOOL WINAPI CertAddCRLContextToStore(HCERTSTORE hCertStore,
     case CERT_STORE_ADD_REPLACE_EXISTING_INHERIT_PROPERTIES:
         toAdd = CertDuplicateCRLContext(pCrlContext);
         if (existing)
-            CrlContext_CopyProperties(toAdd, existing);
+            Context_CopyProperties(toAdd, existing);
         break;
     case CERT_STORE_ADD_USE_EXISTING:
         if (existing)
         {
-            CrlContext_CopyProperties(existing, pCrlContext);
+            Context_CopyProperties(existing, pCrlContext);
             if (ppStoreContext)
                 *ppStoreContext = CertDuplicateCRLContext(existing);
         }
@@ -1234,7 +1235,7 @@ BOOL WINAPI CertCloseStore(HCERTSTORE hCertStore, DWORD dwFlags)
     {
         TRACE("%p's ref count is 0, freeing\n", hcs);
         hcs->dwMagic = 0;
-        hcs->closeStore(hcs, dwFlags);
+        hcs->vtbl->closeStore(hcs, dwFlags);
     }
     else
         TRACE("%p's ref count is %d\n", hcs, hcs->ref);
@@ -1256,8 +1257,8 @@ BOOL WINAPI CertControlStore(HCERTSTORE hCertStore, DWORD dwFlags,
         ret = FALSE;
     else
     {
-        if (hcs->control)
-            ret = hcs->control(hCertStore, dwFlags, dwCtrlType, pvCtrlPara);
+        if (hcs->vtbl->control)
+            ret = hcs->vtbl->control(hcs, dwFlags, dwCtrlType, pvCtrlPara);
         else
             ret = TRUE;
     }

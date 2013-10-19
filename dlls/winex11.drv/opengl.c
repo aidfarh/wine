@@ -258,7 +258,8 @@ enum glx_swap_control_method
 {
     GLX_SWAP_CONTROL_NONE,
     GLX_SWAP_CONTROL_EXT,
-    GLX_SWAP_CONTROL_SGI
+    GLX_SWAP_CONTROL_SGI,
+    GLX_SWAP_CONTROL_MESA
 };
 
 /* X context to associate a struct gl_drawable to an hwnd */
@@ -277,7 +278,7 @@ static struct list context_list = LIST_INIT( context_list );
 static struct WineGLInfo WineGLInfo = { 0 };
 static struct wgl_pixel_format *pixel_formats;
 static int nb_pixel_formats, nb_onscreen_formats;
-static int use_render_texture_emulation = 1;
+static BOOL use_render_texture_emulation = TRUE;
 
 /* Selects the preferred GLX swap control method for use by wglSwapIntervalEXT */
 static enum glx_swap_control_method swap_control_method = GLX_SWAP_CONTROL_NONE;
@@ -404,6 +405,7 @@ static void  (*pglXFreeMemoryNV)(GLvoid *pointer);
 
 /* MESA GLX Extensions */
 static void (*pglXCopySubBufferMESA)(Display *dpy, GLXDrawable drawable, int x, int y, int width, int height);
+static int (*pglXSwapIntervalMESA)(unsigned int interval);
 
 /* Standard OpenGL */
 static void (*pglFinish)(void);
@@ -564,7 +566,7 @@ done:
 
 static BOOL has_opengl(void)
 {
-    static int init_done;
+    static BOOL init_done = FALSE;
     static void *opengl_handle;
 
     char buffer[200];
@@ -572,7 +574,7 @@ static BOOL has_opengl(void)
     unsigned int i;
 
     if (init_done) return (opengl_handle != NULL);
-    init_done = 1;
+    init_done = TRUE;
 
     /* No need to load any other libraries as according to the ABI, libGL should be self-sufficient
        and include all dependencies */
@@ -650,6 +652,8 @@ static BOOL has_opengl(void)
     LOAD_FUNCPTR(glXCreateContextAttribsARB);
     /* EXT GLX Extension */
     LOAD_FUNCPTR(glXSwapIntervalEXT);
+    /* MESA GLX Extension */
+    LOAD_FUNCPTR(glXSwapIntervalMESA);
     /* SGI GLX Extension */
     LOAD_FUNCPTR(glXSwapIntervalSGI);
     /* NV GLX Extension */
@@ -2416,7 +2420,7 @@ static BOOL X11DRV_wglSetPbufferAttribARB( struct wgl_pbuffer *object, const int
         SetLastError(ERROR_INVALID_HANDLE);
         return GL_FALSE;
     }
-    if (1 == use_render_texture_emulation) {
+    if (use_render_texture_emulation) {
         return GL_TRUE;
     }
     return ret;
@@ -2516,7 +2520,7 @@ static BOOL X11DRV_wglChoosePixelFormatARB( HDC hdc, const int *piAttribIList, c
                 {
                     piFormats[pfmt_it++] = i + 1;
                     TRACE("at %d/%d found FBCONFIG_ID 0x%x (%d)\n",
-                          it + 1, nCfgs, fmt_id, piFormats[pfmt_it]);
+                          it + 1, nCfgs, fmt_id, i + 1);
                     break;
                 }
             }
@@ -2825,8 +2829,8 @@ static BOOL X11DRV_wglBindTexImageARB( struct wgl_pbuffer *object, int iBuffer )
         return GL_FALSE;
     }
 
-    if (1 == use_render_texture_emulation) {
-        static int init = 0;
+    if (use_render_texture_emulation) {
+        static BOOL initialized = FALSE;
         int prev_binded_texture = 0;
         GLXContext prev_context;
         Drawable prev_drawable;
@@ -2839,8 +2843,8 @@ static BOOL X11DRV_wglBindTexImageARB( struct wgl_pbuffer *object, int iBuffer )
            This is mostly due to lack of demos/games using them. Further the use of glReadPixels
            isn't ideal performance wise but I wasn't able to get other ways working.
         */
-        if(!init) {
-            init = 1; /* Only show the FIXME once for performance reasons */
+        if(!initialized) {
+            initialized = TRUE; /* Only show the FIXME once for performance reasons */
             FIXME("partial stub!\n");
         }
 
@@ -2881,7 +2885,7 @@ static BOOL X11DRV_wglReleaseTexImageARB( struct wgl_pbuffer *object, int iBuffe
         SetLastError(ERROR_INVALID_HANDLE);
         return GL_FALSE;
     }
-    if (1 == use_render_texture_emulation) {
+    if (use_render_texture_emulation) {
         return GL_TRUE;
     }
     return ret;
@@ -2961,6 +2965,10 @@ static BOOL X11DRV_wglSwapIntervalEXT(int interval)
         pglXSwapIntervalEXT(gdi_display, gl->drawable, interval);
         XSync(gdi_display, False);
         ret = !X11DRV_check_error();
+        break;
+
+    case GLX_SWAP_CONTROL_MESA:
+        ret = !pglXSwapIntervalMESA(interval);
         break;
 
     case GLX_SWAP_CONTROL_SGI:
@@ -3146,6 +3154,10 @@ static void X11DRV_WineGL_LoadExtensions(void)
             has_swap_control_tear = TRUE;
         }
     }
+    else if (has_extension( WineGLInfo.glxExtensions, "GLX_MESA_swap_control"))
+    {
+        swap_control_method = GLX_SWAP_CONTROL_MESA;
+    }
     else if (has_extension( WineGLInfo.glxExtensions, "GLX_SGI_swap_control"))
     {
         swap_control_method = GLX_SWAP_CONTROL_SGI;
@@ -3208,6 +3220,7 @@ static BOOL glxdrv_wglSwapBuffers( HDC hdc )
         pglXSwapBuffers(gdi_display, gl->drawable);
         break;
     case DC_GL_CHILD_WIN:
+        if (ctx) sync_context( ctx );
         escape.gl_drawable = gl->drawable;
         /* fall through */
     default:

@@ -79,16 +79,16 @@ static const WCHAR * const root_key_names[] =
 static HKEY special_root_keys[NB_SPECIAL_ROOT_KEYS];
 static BOOL hkcu_cache_disabled;
 
-static const int is_win64 = (sizeof(void *) > sizeof(int));
+static const BOOL is_win64 = (sizeof(void *) > sizeof(int));
 
 /* check if value type needs string conversion (Ansi<->Unicode) */
-static inline int is_string( DWORD type )
+static inline BOOL is_string( DWORD type )
 {
     return (type == REG_SZ) || (type == REG_EXPAND_SZ) || (type == REG_MULTI_SZ);
 }
 
 /* check if current version is NT or Win95 */
-static inline int is_version_nt(void)
+static inline BOOL is_version_nt(void)
 {
     return !(GetVersion() & 0x80000000);
 }
@@ -1176,7 +1176,7 @@ LSTATUS WINAPI RegDeleteKeyA( HKEY hkey, LPCSTR name )
  *  Failure: Error code
  */
 LSTATUS WINAPI RegSetValueExW( HKEY hkey, LPCWSTR name, DWORD reserved,
-                            DWORD type, CONST BYTE *data, DWORD count )
+                            DWORD type, const BYTE *data, DWORD count )
 {
     UNICODE_STRING nameW;
 
@@ -1208,7 +1208,7 @@ LSTATUS WINAPI RegSetValueExW( HKEY hkey, LPCWSTR name, DWORD reserved,
  *  NT does definitely care (aj)
  */
 LSTATUS WINAPI RegSetValueExA( HKEY hkey, LPCSTR name, DWORD reserved, DWORD type,
-                            CONST BYTE *data, DWORD count )
+                            const BYTE *data, DWORD count )
 {
     ANSI_STRING nameA;
     UNICODE_STRING nameW;

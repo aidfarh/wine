@@ -677,6 +677,14 @@ int CDECL MSVCRT_strncat_s( char* dst, MSVCRT_size_t elem, const char* src, MSVC
 }
 
 /*********************************************************************
+ *      strncat (MSVCRT.@)
+ */
+char* __cdecl MSVCRT_strncat(char *dst, const char *src, MSVCRT_size_t len)
+{
+    return strncat(dst, src, len);
+}
+
+/*********************************************************************
  *		strxfrm (MSVCRT.@)
  */
 MSVCRT_size_t CDECL MSVCRT_strxfrm( char *dest, const char *src, MSVCRT_size_t len )
@@ -718,67 +726,12 @@ int CDECL __STRINGTOLD( MSVCRT__LDOUBLE *value, char **endptr, const char *str, 
     return 0;
 }
 
-/******************************************************************
- *		strtol (MSVCRT.@)
+/*********************************************************************
+ *              strlen (MSVCRT.@)
  */
-MSVCRT_long CDECL MSVCRT_strtol(const char* nptr, char** end, int base)
+MSVCRT_size_t __cdecl MSVCRT_strlen(const char *str)
 {
-    /* wrapper to forward libc error code to msvcrt's error codes */
-    long ret;
-
-    errno = 0;
-    ret = strtol(nptr, end, base);
-    switch (errno)
-    {
-    case ERANGE:        *MSVCRT__errno() = MSVCRT_ERANGE;       break;
-    case EINVAL:        *MSVCRT__errno() = MSVCRT_EINVAL;       break;
-    default:
-        /* cope with the fact that we may use 64bit long integers on libc
-         * while msvcrt always uses 32bit long integers
-         */
-        if (ret > MSVCRT_LONG_MAX)
-        {
-            ret = MSVCRT_LONG_MAX;
-            *MSVCRT__errno() = MSVCRT_ERANGE;
-        }
-        else if (ret < -MSVCRT_LONG_MAX - 1)
-        {
-            ret = -MSVCRT_LONG_MAX - 1;
-            *MSVCRT__errno() = MSVCRT_ERANGE;
-        }
-        break;
-    }
-
-    return ret;
-}
-
-/******************************************************************
- *		strtoul (MSVCRT.@)
- */
-MSVCRT_ulong CDECL MSVCRT_strtoul(const char* nptr, char** end, int base)
-{
-    /* wrapper to forward libc error code to msvcrt's error codes */
-    unsigned long ret;
-
-    errno = 0;
-    ret = strtoul(nptr, end, base);
-    switch (errno)
-    {
-    case ERANGE:        *MSVCRT__errno() = MSVCRT_ERANGE;       break;
-    case EINVAL:        *MSVCRT__errno() = MSVCRT_EINVAL;       break;
-    default:
-        /* cope with the fact that we may use 64bit long integers on libc
-         * while msvcrt always uses 32bit long integers
-         */
-        if (ret > MSVCRT_ULONG_MAX)
-        {
-            ret = MSVCRT_ULONG_MAX;
-            *MSVCRT__errno() = MSVCRT_ERANGE;
-        }
-        break;
-    }
-
-    return ret;
+    return strlen(str);
 }
 
 /******************************************************************
@@ -918,6 +871,42 @@ int __cdecl MSVCRT_atoi(const char *str)
     return minus ? -ret : ret;
 }
 
+/******************************************************************
+ *		strtol (MSVCRT.@)
+ */
+MSVCRT_long CDECL MSVCRT_strtol(const char* nptr, char** end, int base)
+{
+    __int64 ret = MSVCRT_strtoi64_l(nptr, end, base, NULL);
+
+    if(ret > MSVCRT_LONG_MAX) {
+        ret = MSVCRT_LONG_MAX;
+        *MSVCRT__errno() = MSVCRT_ERANGE;
+    } else if(ret < MSVCRT_LONG_MIN) {
+        ret = MSVCRT_LONG_MIN;
+        *MSVCRT__errno() = MSVCRT_ERANGE;
+    }
+
+    return ret;
+}
+
+/******************************************************************
+ *		strtoul (MSVCRT.@)
+ */
+MSVCRT_ulong CDECL MSVCRT_strtoul(const char* nptr, char** end, int base)
+{
+    __int64 ret = MSVCRT_strtoi64_l(nptr, end, base, NULL);
+
+    if(ret > MSVCRT_ULONG_MAX) {
+        ret = MSVCRT_ULONG_MAX;
+        *MSVCRT__errno() = MSVCRT_ERANGE;
+    }else if(ret < -(__int64)MSVCRT_ULONG_MAX) {
+        ret = 1;
+        *MSVCRT__errno() = MSVCRT_ERANGE;
+    }
+
+    return ret;
+}
+
 /*********************************************************************
  *  _strtoui64_l (MSVCRT.@)
  *
@@ -998,7 +987,7 @@ int CDECL _ltoa_s(MSVCRT_long value, char *str, MSVCRT_size_t size, int radix)
 {
     MSVCRT_ulong val;
     unsigned int digit;
-    int is_negative;
+    BOOL is_negative;
     char buffer[33], *pos;
     size_t len;
 
@@ -1012,12 +1001,12 @@ int CDECL _ltoa_s(MSVCRT_long value, char *str, MSVCRT_size_t size, int radix)
 
     if (value < 0 && radix == 10)
     {
-        is_negative = 1;
+        is_negative = TRUE;
         val = -value;
     }
     else
     {
-        is_negative = 0;
+        is_negative = FALSE;
         val = value;
     }
 
@@ -1073,7 +1062,7 @@ int CDECL _ltow_s(MSVCRT_long value, MSVCRT_wchar_t *str, MSVCRT_size_t size, in
 {
     MSVCRT_ulong val;
     unsigned int digit;
-    int is_negative;
+    BOOL is_negative;
     MSVCRT_wchar_t buffer[33], *pos;
     size_t len;
 
@@ -1087,12 +1076,12 @@ int CDECL _ltow_s(MSVCRT_long value, MSVCRT_wchar_t *str, MSVCRT_size_t size, in
 
     if (value < 0 && radix == 10)
     {
-        is_negative = 1;
+        is_negative = TRUE;
         val = -value;
     }
     else
     {
-        is_negative = 0;
+        is_negative = FALSE;
         val = value;
     }
 
@@ -1147,6 +1136,14 @@ int CDECL _ltow_s(MSVCRT_long value, MSVCRT_wchar_t *str, MSVCRT_size_t size, in
 int CDECL _itoa_s(int value, char *str, MSVCRT_size_t size, int radix)
 {
     return _ltoa_s(value, str, size, radix);
+}
+
+/*********************************************************************
+ *  _itoa (MSVCRT.@)
+ */
+char* CDECL _itoa(int value, char *str, int radix)
+{
+    return _itoa_s(value, str, MSVCRT_SIZE_MAX, radix) ? NULL : str;
 }
 
 /*********************************************************************
@@ -1349,7 +1346,7 @@ int CDECL _i64toa_s(__int64 value, char *str, MSVCRT_size_t size, int radix)
 {
     unsigned __int64 val;
     unsigned int digit;
-    int is_negative;
+    BOOL is_negative;
     char buffer[65], *pos;
     size_t len;
 
@@ -1363,12 +1360,12 @@ int CDECL _i64toa_s(__int64 value, char *str, MSVCRT_size_t size, int radix)
 
     if (value < 0 && radix == 10)
     {
-        is_negative = 1;
+        is_negative = TRUE;
         val = -value;
     }
     else
     {
-        is_negative = 0;
+        is_negative = FALSE;
         val = value;
     }
 
@@ -1424,7 +1421,7 @@ int CDECL _i64tow_s(__int64 value, MSVCRT_wchar_t *str, MSVCRT_size_t size, int 
 {
     unsigned __int64 val;
     unsigned int digit;
-    int is_negative;
+    BOOL is_negative;
     MSVCRT_wchar_t buffer[65], *pos;
     size_t len;
 
@@ -1438,12 +1435,12 @@ int CDECL _i64tow_s(__int64 value, MSVCRT_wchar_t *str, MSVCRT_size_t size, int 
 
     if (value < 0 && radix == 10)
     {
-        is_negative = 1;
+        is_negative = TRUE;
         val = -value;
     }
     else
     {
-        is_negative = 0;
+        is_negative = FALSE;
         val = value;
     }
 
@@ -1594,11 +1591,27 @@ int CDECL MSVCRT_I10_OUTPUT(MSVCRT__LDOUBLE ld80, int prec, int flag, struct _I1
 #undef I10_OUTPUT_MAX_PREC
 
 /*********************************************************************
+ *                  memcmp (MSVCRT.@)
+ */
+int __cdecl MSVCRT_memcmp(const void *ptr1, const void *ptr2, MSVCRT_size_t n)
+{
+    return memcmp(ptr1, ptr2, n);
+}
+
+/*********************************************************************
  *                  memcpy   (MSVCRT.@)
  */
-void * __cdecl MSVCRT_memcpy( void *dst, const void *src, size_t n )
+void * __cdecl MSVCRT_memcpy(void *dst, const void *src, MSVCRT_size_t n)
 {
-    return memmove( dst, src, n );
+    return memmove(dst, src, n);
+}
+
+/*********************************************************************
+ *                  memmove (MSVCRT.@)
+ */
+void * __cdecl MSVCRT_memmove(void *dst, const void *src, MSVCRT_size_t n)
+{
+    return memmove(dst, src, n);
 }
 
 /*********************************************************************
@@ -1618,11 +1631,27 @@ char* __cdecl MSVCRT_strchr(const char *str, int c)
 }
 
 /*********************************************************************
+ *                  strrchr (MSVCRT.@)
+ */
+char* __cdecl MSVCRT_strrchr(const char *str, int c)
+{
+    return strrchr(str, c);
+}
+
+/*********************************************************************
  *                  memchr   (MSVCRT.@)
  */
 void* __cdecl MSVCRT_memchr(const void *ptr, int c, MSVCRT_size_t n)
 {
     return memchr(ptr, c, n);
+}
+
+/*********************************************************************
+ *                  strcmp (MSVCRT.@)
+ */
+int __cdecl MSVCRT_strcmp(const char *str1, const char *str2)
+{
+    return strcmp(str1, str2);
 }
 
 /*********************************************************************
@@ -1686,4 +1715,12 @@ int __cdecl MSVCRT__strnicmp(const char *s1, const char *s2, MSVCRT_size_t count
 int __cdecl MSVCRT__stricmp(const char *s1, const char *s2)
 {
     return MSVCRT__strnicmp_l(s1, s2, -1, NULL);
+}
+
+/*********************************************************************
+ *                  strstr   (MSVCRT.@)
+ */
+char* __cdecl MSVCRT_strstr(const char *haystack, const char *needle)
+{
+    return strstr(haystack, needle);
 }

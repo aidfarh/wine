@@ -392,7 +392,7 @@ double CDECL MSVCRT__wcstod_l(const MSVCRT_wchar_t* str, MSVCRT_wchar_t** end,
 /*********************************************************************
  * wcsrtombs_l (INTERNAL)
  */
-static MSVCRT_size_t CDECL MSVCRT_wcsrtombs_l(char *mbstr, const MSVCRT_wchar_t **wcstr,
+static MSVCRT_size_t MSVCRT_wcsrtombs_l(char *mbstr, const MSVCRT_wchar_t **wcstr,
         MSVCRT_size_t count, MSVCRT__locale_t locale)
 {
     MSVCRT_pthreadlocinfo locinfo;
@@ -407,8 +407,10 @@ static MSVCRT_size_t CDECL MSVCRT_wcsrtombs_l(char *mbstr, const MSVCRT_wchar_t 
     if(!mbstr) {
         tmp = WideCharToMultiByte(locinfo->lc_codepage, WC_NO_BEST_FIT_CHARS,
                 *wcstr, -1, NULL, 0, NULL, &used_default)-1;
-        if(used_default)
+        if(!tmp || used_default) {
+            *MSVCRT__errno() = MSVCRT_EILSEQ;
             return -1;
+        }
         return tmp;
     }
 
@@ -418,8 +420,10 @@ static MSVCRT_size_t CDECL MSVCRT_wcsrtombs_l(char *mbstr, const MSVCRT_wchar_t 
 
         size = WideCharToMultiByte(locinfo->lc_codepage, WC_NO_BEST_FIT_CHARS,
                 *wcstr, 1, buf, 3, NULL, &used_default);
-        if(used_default)
+        if(!size || used_default) {
+            *MSVCRT__errno() = MSVCRT_EILSEQ;
             return -1;
+        }
         if(tmp+size > count)
             return tmp;
 
@@ -476,6 +480,8 @@ static int MSVCRT_wcsrtombs_s_l(MSVCRT_size_t *ret, char *mbstr,
 
     if(!mbstr && !size && wcstr) {
         conv = MSVCRT_wcsrtombs_l(NULL, wcstr, 0, locale);
+        if(conv == -1)
+            return *MSVCRT__errno();
         if(ret)
             *ret = conv+1;
         return 0;
@@ -492,7 +498,11 @@ static int MSVCRT_wcsrtombs_s_l(MSVCRT_size_t *ret, char *mbstr,
         conv = count;
 
     conv = MSVCRT_wcsrtombs_l(mbstr, wcstr, conv, locale);
-    if(conv<size)
+    if(conv == -1) {
+        if(size)
+            mbstr[0] = '\0';
+        return *MSVCRT__errno();
+    }else if(conv < size)
         mbstr[conv++] = '\0';
     else if(conv==size && (count==MSVCRT__TRUNCATE || mbstr[conv-1]=='\0'))
         mbstr[conv-1] = '\0';
@@ -878,6 +888,20 @@ int CDECL MSVCRT__snwprintf_s( MSVCRT_wchar_t *str, unsigned int len, unsigned i
     __ms_va_list valist;
     __ms_va_start(valist, format);
     retval = MSVCRT_vsnwprintf_s_l(str, len, count, format, NULL, valist);
+    __ms_va_end(valist);
+    return retval;
+}
+
+/*********************************************************************
+ *              _snwprintf_s_l (MSVCRT.@)
+ */
+int CDECL MSVCRT__snwprintf_s_l( MSVCRT_wchar_t *str, unsigned int len, unsigned int count,
+        const MSVCRT_wchar_t *format, MSVCRT__locale_t locale, ... )
+{
+    int retval;
+    __ms_va_list valist;
+    __ms_va_start(valist, locale);
+    retval = MSVCRT_vsnwprintf_s_l(str, len, count, format, locale, valist);
     __ms_va_end(valist);
     return retval;
 }
@@ -1839,4 +1863,71 @@ int CDECL MSVCRT__towlower_l(MSVCRT_wint_t c, MSVCRT__locale_t locale)
 int CDECL MSVCRT_towlower(MSVCRT_wint_t c)
 {
     return MSVCRT__towlower_l(c, NULL);
+}
+
+/*********************************************************************
+ *              wcschr (MSVCRT.@)
+ */
+MSVCRT_wchar_t* CDECL MSVCRT_wcschr(const MSVCRT_wchar_t *str, MSVCRT_wchar_t ch)
+{
+    return strchrW(str, ch);
+}
+
+/***********************************************************************
+ *              wcslen (MSVCRT.@)
+ */
+int CDECL MSVCRT_wcslen(const MSVCRT_wchar_t *str)
+{
+    return strlenW(str);
+}
+
+/*********************************************************************
+ *              wcsstr (MSVCRT.@)
+ */
+MSVCRT_wchar_t* CDECL MSVCRT_wcsstr(const MSVCRT_wchar_t *str, const MSVCRT_wchar_t *sub)
+{
+    return strstrW(str, sub);
+}
+
+/*********************************************************************
+ *              _wtoi64_l (MSVCRT.@)
+ */
+__int64 CDECL _wtoi64_l(const MSVCRT_wchar_t *str, MSVCRT__locale_t locale)
+{
+    ULONGLONG RunningTotal = 0;
+    char bMinus = 0;
+
+    while (isspaceW(*str)) {
+        str++;
+    } /* while */
+
+    if (*str == '+') {
+        str++;
+    } else if (*str == '-') {
+        bMinus = 1;
+        str++;
+    } /* if */
+
+    while (*str >= '0' && *str <= '9') {
+        RunningTotal = RunningTotal * 10 + *str - '0';
+        str++;
+    } /* while */
+
+    return bMinus ? -RunningTotal : RunningTotal;
+}
+
+/*********************************************************************
+ *              _wtoi64 (MSVCRT.@)
+ */
+__int64 CDECL _wtoi64(const MSVCRT_wchar_t *str)
+{
+    return _wtoi64_l(str, NULL);
+}
+
+/*********************************************************************
+ *           wcsncmp    (MSVCRT.@)
+ */
+int CDECL MSVCRT_wcsncmp(const MSVCRT_wchar_t *str1, const MSVCRT_wchar_t *str2, int n)
+{
+    return strncmpW(str1, str2, n);
 }

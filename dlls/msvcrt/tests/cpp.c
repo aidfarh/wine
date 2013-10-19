@@ -283,7 +283,7 @@ static BOOL InitFunctionPtrs(void)
         SET(ptype_info_dtor, "??1type_info@@UAA@XZ");
         SET(ptype_info_raw_name, "?raw_name@type_info@@QBAPBDXZ");
         SET(ptype_info_name, "?name@type_info@@QBEPBDXZ");
-        SET(ptype_info_before, "?before@type_info@@QBEHABV1@@Z");
+        SET(ptype_info_before, "?before@type_info@@QBA_NABV1@@Z");
         SET(ptype_info_opequals_equals, "??8type_info@@QBA_NABV0@@Z");
         SET(ptype_info_opnot_equals, "??9type_info@@QBA_NABV0@@Z");
 #else
@@ -1312,6 +1312,12 @@ static void test_demangle(void)
 /* 123 */ {"?vtordisp_thunk@std@@$4PPPPPPPM@3EAA_NXZ",
            "[thunk]:public: virtual bool __cdecl std::vtordisp_thunk`vtordisp{4294967292,4}' (void) __ptr64",
            "[thunk]:public: virtual bool __cdecl std::vtordisp_thunk`vtordisp{-4,4}' (void) __ptr64"},
+/* 124 */ {"??_9CView@@$BBII@AE",
+           "[thunk]: __thiscall CView::`vcall'{392,{flat}}' }'",
+           "[thunk]: __thiscall CView::`vcall'{392,{flat}}' "},
+/* 125 */ {"?_dispatch@_impl_Engine@SalomeApp@@$R4CE@BA@PPPPPPPM@7AE_NAAVomniCallHandle@@@Z",
+           "[thunk]:public: virtual bool __thiscall SalomeApp::_impl_Engine::_dispatch`vtordispex{36,16,4294967292,8}' (class omniCallHandle &)",
+           "?_dispatch@_impl_Engine@SalomeApp@@$R4CE@BA@PPPPPPPM@7AE_NAAVomniCallHandle@@@Z"},
     };
     int i, num_test = (sizeof(test)/sizeof(test[0]));
     char* name;
